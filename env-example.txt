@@ -1,0 +1,16 @@
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=password
+DB_DATABASE=instamanager
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+NODE_ENV=development
+PORT=3001
+FRONTEND_URL=http://localhost:3000
+GOOGLE_APPLICATION_CREDENTIALS=
+GOOGLE_CLOUD_PROJECT=
+INSTAGRAM_CLIENT_ID=
+INSTAGRAM_CLIENT_SECRET=
+INSTAGRAM_REDIRECT_URI=http://localhost:3001/auth/instagram/callback
+UPLOAD_DIR=uploads
+MAX_FILE_SIZE=10485760
