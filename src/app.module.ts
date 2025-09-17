@@ -10,7 +10,7 @@ import { SchedulesModule } from './schedules/schedules.module';
 import { AIModule } from './ai/ai.module';
 import { InstagramModule } from './instagram/instagram.module';
 import { IgAccountsModule } from './ig-accounts/ig-accounts.module';
-import { DataSource  } from 'typeorm';
+import { AppDataSource } from './data-source';
 
 
 @Module({
@@ -26,8 +26,9 @@ import { DataSource  } from 'typeorm';
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_DATABASE || 'instamanager',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false, // Disabled to prevent schema conflicts
+      synchronize: false, // Use migrations in production
       logging: process.env.NODE_ENV === 'development',
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     }),
     AuthModule,
     UsersModule,
