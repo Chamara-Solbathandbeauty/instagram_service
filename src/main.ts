@@ -9,8 +9,14 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'http://socialmedia.solbathandbeauty.com:3000',
+      process.env.FRONTEND_URL || 'http://localhost:3000'
+    ].filter(Boolean), // Remove any undefined values
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });
 
   // Enable global validation pipes
