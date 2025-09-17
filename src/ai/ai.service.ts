@@ -628,16 +628,17 @@ export class AiService {
          const mediaType = timeSlot.postType === PostType.REEL ? 'video' : 'image';
          const fileName = `ai_generated_${content.id}_${Date.now()}.${mediaType === 'video' ? 'mp4' : 'jpg'}`;
 
-         // Parse the media prompt to extract components for VertexAIMediaService
-         const promptParts = this.parseMediaPrompt(
-           this.createMediaPrompt(
-             validatedData.mediaDescription,
-             validatedData.mediaStyle,
-             validatedData.mediaElements,
-             timeSlot.postType,
-             account
-           )
+         // Create the full media prompt for saving to database
+         const fullMediaPrompt = this.createMediaPrompt(
+           validatedData.mediaDescription,
+           validatedData.mediaStyle,
+           validatedData.mediaElements,
+           timeSlot.postType,
+           account
          );
+
+         // Parse the media prompt to extract components for VertexAIMediaService
+         const promptParts = this.parseMediaPrompt(fullMediaPrompt);
 
          let filePath: string;
          let fileSize: number;
@@ -697,7 +698,7 @@ export class AiService {
              }
 
              // Save image to uploads folder
-             filePath = path.join(process.cwd(), 'uploads', 'ai_generated', 'images', fileName);
+             filePath = path.join(process.cwd(), 'uploads', 'media', 'images', fileName);
              
              // Ensure directory exists
              const dir = path.dirname(filePath);
@@ -713,7 +714,7 @@ export class AiService {
            fileSize = stats.size;
 
            // Convert absolute path to relative path for database storage
-           const relativePath = filePath.replace(process.cwd(), '');
+           const relativePath = filePath.replace(path.join(process.cwd(), 'uploads', 'media'), '');
 
            const createMediaDto = {
              fileName: fileName,
@@ -721,6 +722,7 @@ export class AiService {
              fileSize: fileSize,
              mimeType: mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
              mediaType: mediaType as any,
+             prompt: fullMediaPrompt,
            };
 
            const media = await this.contentService.addMedia(content.id, userId, createMediaDto);

@@ -64,12 +64,16 @@ export class ImageGenerationAgent {
         throw new Error(`Image generation failed: ${imageGenerationResult.error}`);
       }
 
-      // 2. Save media file and create media record (content will be created by ContentAgentService)
+      // 2. Create prompt for media generation
+      const mediaPrompt = this.createMediaPrompt(contentIdea);
+
+      // 3. Save media file and create media record (content will be created by ContentAgentService)
       const media = await this.mediaStorageService.saveMediaFile(
         null, // contentId will be set later by ContentAgentService
         imageGenerationResult.mediaData!,
         `generated_image_${Date.now()}.jpg`,
-        'image'
+        'image',
+        mediaPrompt
       );
 
       return {
@@ -87,6 +91,18 @@ export class ImageGenerationAgent {
       console.error('Image Generation Agent Error:', error);
       throw error;
     }
+  }
+
+  private createMediaPrompt(contentIdea: any): string {
+    const elementsText = contentIdea.visualElements.join(', ');
+    
+    return `Create an image for Instagram content. 
+Content Description: ${contentIdea.description}. 
+Visual Style: ${contentIdea.style}. 
+Mood: ${contentIdea.mood}. 
+Key Elements to Include: ${elementsText}. 
+Target Audience: ${contentIdea.targetAudience}. 
+Requirements: High-quality, professional composition, visually appealing, suitable for social media content.`;
   }
 
   private async generateImage(contentIdea: any): Promise<any> {

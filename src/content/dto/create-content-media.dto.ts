@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional } from 'class-validator';
 import { MediaType } from '../media.entity';
 
 export class CreateContentMediaDto {
@@ -21,5 +21,9 @@ export class CreateContentMediaDto {
   @IsEnum(MediaType)
   @IsNotEmpty()
   mediaType: MediaType;
+
+  @IsOptional()
+  @IsString()
+  prompt?: string;
 }
 

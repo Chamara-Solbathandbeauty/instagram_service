@@ -9,6 +9,8 @@ import { ContentModule } from './content/content.module';
 import { SchedulesModule } from './schedules/schedules.module';
 import { AIModule } from './ai/ai.module';
 import { InstagramModule } from './instagram/instagram.module';
+import { IgAccountsModule } from './ig-accounts/ig-accounts.module';
+import { DataSource  } from 'typeorm';
 
 
 @Module({
@@ -33,6 +35,7 @@ import { InstagramModule } from './instagram/instagram.module';
     SchedulesModule,
     AIModule,
     InstagramModule,
+    IgAccountsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

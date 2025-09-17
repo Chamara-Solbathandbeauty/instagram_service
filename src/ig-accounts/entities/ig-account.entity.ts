@@ -11,6 +11,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Content } from '../../content/entities/content.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
+import { AccountImage } from './account-image.entity';
 
 @Entity('ig_accounts')
 export class IgAccount {
@@ -65,5 +66,8 @@ export class IgAccount {
 
   @OneToMany(() => Schedule, (schedule) => schedule.account)
   schedules: Schedule[];
+
+  @OneToMany(() => AccountImage, (image) => image.account)
+  images: AccountImage[];
 }
 

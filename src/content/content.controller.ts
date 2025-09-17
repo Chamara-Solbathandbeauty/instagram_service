@@ -112,5 +112,14 @@ export class ContentController {
   deleteMedia(@Param('mediaId') mediaId: string, @GetUser() user: any) {
     return this.contentService.deleteMedia(+mediaId, user.id);
   }
+
+  @Post('media/:mediaId/regenerate')
+  async regenerateMedia(
+    @Param('mediaId') mediaId: string,
+    @Body() body: { prompt: string },
+    @GetUser() user: any
+  ) {
+    return this.contentService.regenerateMedia(+mediaId, body.prompt, user.id);
+  }
 }
 

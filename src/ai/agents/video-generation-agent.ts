@@ -83,11 +83,13 @@ export class VideoGenerationAgent {
           
           if (statusResult.success && statusResult.metadata?.status === 'COMPLETED' && statusResult.mediaData) {
             // Video generation completed, save the media
+            const mediaPrompt = this.createMediaPrompt(contentIdea);
             const media = await this.mediaStorageService.saveMediaFile(
               null, // contentId will be set later by ContentAgentService
               statusResult.mediaData,
               `generated_video_${Date.now()}.mp4`,
-              'video'
+              'video',
+              mediaPrompt
             );
             
             return {
@@ -141,6 +143,18 @@ export class VideoGenerationAgent {
       console.error('Video Generation Agent Error:', error);
       throw error;
     }
+  }
+
+  private createMediaPrompt(contentIdea: any): string {
+    const elementsText = contentIdea.visualElements.join(', ');
+    
+    return `Create a video for Instagram content. 
+Content Description: ${contentIdea.description}. 
+Visual Style: ${contentIdea.style}. 
+Mood: ${contentIdea.mood}. 
+Key Elements to Include: ${elementsText}. 
+Target Audience: ${contentIdea.targetAudience}. 
+Requirements: High-quality video with professional composition, engaging content, suitable for social media, clear and focused subject matter.`;
   }
 
   private async generateVideo(contentIdea: any): Promise<any> {

@@ -12,6 +12,8 @@ import { IgAccountsService } from '../ig-accounts/ig-accounts.service';
 import { CreateContentDto } from './dto/create-content.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { CreateContentMediaDto } from './dto/create-content-media.dto';
+import { VertexAIMediaService } from '../ai/services/vertex-ai-media.service';
+import { MediaStorageService } from '../ai/services/media-storage.service';
 
 @Injectable()
 export class ContentService {
@@ -21,6 +23,8 @@ export class ContentService {
     @InjectRepository(Media)
     private mediaRepository: Repository<Media>,
     private igAccountsService: IgAccountsService,
+    private vertexAiMediaService: VertexAIMediaService,
+    private mediaStorageService: MediaStorageService,
   ) {}
 
   async create(userId: string, createContentDto: CreateContentDto, mediaFiles?: Express.Multer.File[]): Promise<Content> {
@@ -36,7 +40,7 @@ export class ContentService {
         const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
         const createMediaDto: CreateContentMediaDto = {
           fileName: file.filename,
-          filePath: `media/${file.filename}`,
+          filePath: file.filename,
           fileSize: file.size,
           mimeType: file.mimetype,
           mediaType: mediaType as any,
@@ -188,6 +192,98 @@ export class ContentService {
     }
 
     await this.mediaRepository.remove(media);
+  }
+
+  async regenerateMedia(mediaId: number, prompt: string, userId: string): Promise<Media> {
+    // Find the existing media with its content and account
+    const existingMedia = await this.mediaRepository.findOne({
+      where: { id: mediaId },
+      relations: ['content', 'content.account'],
+    });
+
+    if (!existingMedia) {
+      throw new NotFoundException('Media not found');
+    }
+
+    if (existingMedia.content.account.userId !== userId) {
+      throw new ForbiddenException('Access denied to this media');
+    }
+
+    // Use injected services
+
+    try {
+      // Generate new media based on the prompt and media type
+      let newMediaData: Buffer;
+      let newFileName: string;
+
+      if (existingMedia.mediaType === 'image') {
+        // Generate new image
+        const imageRequest = {
+          prompt: prompt,
+          style: 'professional',
+          mood: 'engaging',
+          visualElements: ['high quality', 'social media optimized'],
+          targetAudience: 'general',
+        };
+        
+        const imageResult = await this.vertexAiMediaService.generateImage(imageRequest);
+        if (!imageResult.success || !imageResult.mediaData) {
+          throw new Error('Failed to generate new image');
+        }
+        
+        newMediaData = imageResult.mediaData;
+        newFileName = `regenerated_image_${Date.now()}.jpg`;
+      } else {
+        // Generate new video
+        const videoRequest = {
+          prompt: prompt,
+          style: 'professional',
+          mood: 'engaging',
+          visualElements: ['high quality', 'social media optimized'],
+          targetAudience: 'general',
+          duration: 15,
+          aspectRatio: '9:16' as const,
+        };
+        
+        const videoResult = await this.vertexAiMediaService.generateVideo(videoRequest);
+        if (!videoResult.success || !videoResult.mediaData) {
+          throw new Error('Failed to generate new video');
+        }
+        
+        newMediaData = videoResult.mediaData;
+        newFileName = `regenerated_video_${Date.now()}.mp4`;
+      }
+
+      // Save the new media file
+      const newMedia = await this.mediaStorageService.saveMediaFile(
+        existingMedia.contentId,
+        newMediaData,
+        newFileName,
+        existingMedia.mediaType,
+        prompt
+      );
+
+      // Delete the old media file from filesystem
+      const fs = await import('fs');
+      const path = await import('path');
+      const oldFilePath = path.join(process.cwd(), 'uploads', 'media', existingMedia.filePath);
+      
+      try {
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+      } catch (error) {
+        console.warn('Failed to delete old media file:', error);
+      }
+
+      // Remove the old media record from database
+      await this.mediaRepository.remove(existingMedia);
+
+      return newMedia;
+    } catch (error) {
+      console.error('Error regenerating media:', error);
+      throw new Error(`Failed to regenerate media: ${error.message}`);
+    }
   }
 }
 

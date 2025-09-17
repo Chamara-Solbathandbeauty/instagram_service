@@ -39,11 +39,12 @@ export class MediaStorageService {
     contentId: number | null,
     mediaData: Buffer,
     originalFileName: string,
-    mediaType: 'image' | 'video'
+    mediaType: 'image' | 'video',
+    prompt?: string
   ): Promise<Media> {
     const fileExtension = this.getFileExtension(originalFileName);
     const fileName = `${uuidv4()}.${fileExtension}`;
-    const relativePath = `media/${mediaType}s/${fileName}`;
+    const relativePath = `${mediaType}s/${fileName}`;
     const fullPath = path.join(this.mediaBasePath, relativePath);
 
     // Ensure subdirectory exists
@@ -63,6 +64,7 @@ export class MediaStorageService {
       fileSize: mediaData.length,
       mimeType: this.getMimeType(fileExtension),
       mediaType: mediaType === 'image' ? MediaType.IMAGE : MediaType.VIDEO,
+      prompt,
     });
 
     return await this.mediaRepository.save(media);

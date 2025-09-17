@@ -83,11 +83,13 @@ export class ReelGenerationAgent {
           
           if (statusResult.success && statusResult.metadata?.status === 'COMPLETED' && statusResult.mediaData) {
             // Video generation completed, save the media
+            const mediaPrompt = this.createMediaPrompt(contentIdea);
             const media = await this.mediaStorageService.saveMediaFile(
               null, // contentId will be set later by ContentAgentService
               statusResult.mediaData,
               `generated_reel_${Date.now()}.mp4`,
-              'video'
+              'video',
+              mediaPrompt
             );
             
             return {
@@ -141,6 +143,18 @@ export class ReelGenerationAgent {
       console.error('Reel Generation Agent Error:', error);
       throw error;
     }
+  }
+
+  private createMediaPrompt(contentIdea: any): string {
+    const elementsText = contentIdea.visualElements.join(', ');
+    
+    return `Create a short video (reel) for Instagram content. 
+Content Description: ${contentIdea.description}. 
+Visual Style: ${contentIdea.style}. 
+Mood: ${contentIdea.mood}. 
+Key Elements to Include: ${elementsText}. 
+Target Audience: ${contentIdea.targetAudience}. 
+Requirements: Dynamic, engaging short video (15-30 seconds) with smooth transitions, modern editing, high visual appeal, optimized for mobile viewing and Instagram's vertical format.`;
   }
 
   private async generateVideo(contentIdea: any): Promise<any> {

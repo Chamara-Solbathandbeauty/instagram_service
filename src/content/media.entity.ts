@@ -37,6 +37,9 @@ export class Media {
   })
   mediaType: MediaType;
 
+  @Column({ nullable: true })
+  prompt: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }
