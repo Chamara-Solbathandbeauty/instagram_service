@@ -1,10 +1,12 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Content } from './content.entity';
 
-export enum MediaType {
-  IMAGE = 'image',
-  VIDEO = 'video',
-}
+export const MediaType = {
+  IMAGE: 'image',
+  VIDEO: 'video',
+} as const;
+
+export type MediaType = typeof MediaType[keyof typeof MediaType];
 
 @Entity('media')
 export class Media {

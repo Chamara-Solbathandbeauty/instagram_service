@@ -18,12 +18,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "typeorm-ts-node-esm",
-    "typeorm:run-migrations": "npm run typeorm -- migration:run -d ./src/data-source.ts",
-    "typeorm:generate-migration": "npm run typeorm -- migration:generate -d ./src/data-source.ts",
+    "typeorm": "typeorm",
+    "typeorm:run-migrations": "npm run typeorm -- migration:run -d ./src/data-source.js",
+    "typeorm:generate-migration": "npm run typeorm -- migration:generate -d ./src/data-source.js",
     "typeorm:create-migration": "npm run typeorm -- migration:create",
-    "typeorm:revert-migration": "npm run typeorm -- migration:revert -d ./src/data-source.ts",
-    "migrate": "npm run typeorm:run-migrations",
+    "typeorm:revert-migration": "npm run typeorm -- migration:revert -d ./src/data-source.js",
+    "migrate": "node migrate.js",
     "migrate:generate": "npm run typeorm:generate-migration",
     "migrate:create": "npm run typeorm:create-migration",
     "migrate:revert": "npm run typeorm:revert-migration"
@@ -56,10 +56,9 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
-    "pg": "^8.11.5",
+    "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.20",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -88,6 +87,7 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "typeorm": "^0.3.26",
     "typescript": "^5.4.5"
   },
   "jest": {

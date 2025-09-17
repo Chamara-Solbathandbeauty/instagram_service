@@ -1,10 +1,12 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './entities/user.entity';
 
-export enum IgAccountType {
-  BUSINESS = 'business',
-  CREATOR = 'creator',
-}
+export const IgAccountType = {
+  BUSINESS: 'business',
+  CREATOR: 'creator',
+} as const;
+
+export type IgAccountType = typeof IgAccountType[keyof typeof IgAccountType];
 
 @Entity('ig_accounts')
 export class IgAccount {

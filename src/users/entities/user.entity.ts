@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export enum UserRole {
-  ADMIN = 'admin',
-  USER = 'user',
-}
+export const UserRole = {
+  ADMIN: 'admin',
+  USER: 'user',
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 @Entity('users')
 export class User {

@@ -12,18 +12,22 @@ import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { Media } from '../media.entity';
 import { ScheduleContent } from '../../schedule-content/entities/schedule-content.entity';
 
-export enum ContentType {
-  REEL = 'reel',
-  STORY = 'story',
-  POST_WITH_IMAGE = 'post_with_image',
-}
+export const ContentType = {
+  REEL: 'reel',
+  STORY: 'story',
+  POST_WITH_IMAGE: 'post_with_image',
+} as const;
 
-export enum ContentStatus {
-  GENERATED = 'generated',
-  PUBLISHED = 'published',
-  REJECTED = 'rejected',
-  QUEUED = 'queued',
-}
+export type ContentType = typeof ContentType[keyof typeof ContentType];
+
+export const ContentStatus = {
+  GENERATED: 'generated',
+  PUBLISHED: 'published',
+  REJECTED: 'rejected',
+  QUEUED: 'queued',
+} as const;
+
+export type ContentStatus = typeof ContentStatus[keyof typeof ContentStatus];
 
 @Entity('content')
 export class Content {
