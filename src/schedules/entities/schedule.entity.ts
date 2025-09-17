@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { TimeSlot } from './time-slot.entity';
-import { ScheduleContent } from '../../schedule-content/entities/schedule-content.entity';
+import { ScheduleContent } from '../schedule-content.entity';
 
 export enum ScheduleFrequency {
   DAILY = 'daily',

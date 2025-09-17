@@ -13,6 +13,13 @@ import { Content } from '../../content/entities/content.entity';
 import { Schedule } from '../../schedules/entities/schedule.entity';
 import { AccountImage } from './account-image.entity';
 
+export const IgAccountType = {
+  BUSINESS: 'business',
+  CREATOR: 'creator',
+} as const;
+
+export type IgAccountType = typeof IgAccountType[keyof typeof IgAccountType];
+
 @Entity('ig_accounts')
 export class IgAccount {
   @PrimaryGeneratedColumn()
@@ -34,10 +41,31 @@ export class IgAccount {
   type: string;
 
   @Column({ nullable: true })
+  instagramAccountId: string;
+
+  @Column({ nullable: true })
+  facebookPageId: string;
+
+  @Column({ nullable: true })
   instagramUserId: string;
 
   @Column({ nullable: true })
   instagramUsername: string;
+
+  @Column({ nullable: true })
+  username: string;
+
+  @Column({ nullable: true })
+  profilePictureUrl: string;
+
+  @Column({ default: 0 })
+  followersCount: number;
+
+  @Column({ default: 0 })
+  followingCount: number;
+
+  @Column({ default: 0 })
+  mediaCount: number;
 
   @Column({ nullable: true })
   accessToken: string;

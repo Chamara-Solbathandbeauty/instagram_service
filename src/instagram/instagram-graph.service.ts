@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 
 export interface InstagramAuthUrl {
   authUrl: string;

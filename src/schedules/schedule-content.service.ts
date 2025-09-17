@@ -4,7 +4,7 @@ import { Repository, Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 import { ScheduleContent, ScheduleContentStatus } from './schedule-content.entity';
 import { ContentQueue, QueueStatus } from './content-queue.entity';
 import { PostingSchedule } from './posting-schedule.entity';
-import { Content } from '../content/content.entity';
+import { Content } from '../content/entities/content.entity';
 import { CreateScheduleContentDto } from './dto/create-schedule-content.dto';
 import { UpdateScheduleContentDto } from './dto/update-schedule-content.dto';
 import { ScheduleContentFilterDto } from './dto/schedule-content-filter.dto';

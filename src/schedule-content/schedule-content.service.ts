@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ScheduleContent, ScheduleContentStatus } from './entities/schedule-content.entity';
+import { ScheduleContent, ScheduleContentStatus } from '../schedules/schedule-content.entity';
 import { SchedulesService } from '../schedules/schedules.service';
 import { ContentService } from '../content/content.service';
 import { CreateScheduleContentDto } from './dto/create-schedule-content.dto';

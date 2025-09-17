@@ -15,7 +15,7 @@ import { User } from '../users/entities/user.entity';
 import { AIAgentService } from './ai-agent.service';
 import { ContentAgentService } from './content-agent.service';
 import { MultiAgentContentService } from './services/multi-agent-content.service';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 

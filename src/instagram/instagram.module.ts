@@ -4,9 +4,9 @@ import { ConfigModule } from '@nestjs/config';
 import { InstagramController } from './instagram.controller';
 import { InstagramGraphService } from './instagram-graph.service';
 import { InstagramPostingService } from './instagram-posting.service';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { Media } from '../content/media.entity';
-import { Content } from '../content/content.entity';
+import { Content } from '../content/entities/content.entity';
 
 @Module({
   imports: [

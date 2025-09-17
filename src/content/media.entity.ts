@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { Content } from './content.entity';
+import { Content } from './entities/content.entity';
 
 export const MediaType = {
   IMAGE: 'image',

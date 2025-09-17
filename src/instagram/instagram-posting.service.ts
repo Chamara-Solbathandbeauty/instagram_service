@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { InstagramGraphService } from './instagram-graph.service';
 import { Media } from '../content/media.entity';
 
@@ -42,7 +42,7 @@ export class InstagramPostingService {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
 
-      if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
+      if (!account.isConnected || !account.accessToken || !account.instagramUserId) {
         throw new HttpException(
           'Instagram account not connected. Please connect your Instagram account first.',
           HttpStatus.BAD_REQUEST,
@@ -75,9 +75,9 @@ export class InstagramPostingService {
 
       console.log('Posting to Instagram:');
       console.log('- Account ID:', account.id);
-      console.log('- Instagram Account ID:', account.instagramAccountId);
+      console.log('- Instagram Account ID:', account.instagramUserId);
       console.log('- Account Type:', account.type);
-      console.log('- Facebook Page ID:', account.facebookPageId);
+      console.log('- Facebook Page ID:', account.instagramUsername);
       console.log('- Access Token:', account.accessToken ? `${account.accessToken.substring(0, 20)}...` : 'NOT SET');
       console.log('- Media URL:', mediaUrl);
       console.log('- Media Type:', media.mediaType);
@@ -86,7 +86,7 @@ export class InstagramPostingService {
       try {
         console.log('Verifying Instagram account access...');
         const accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
-          account.instagramAccountId!,
+          account.instagramUserId!,
           account.accessToken!
         );
         console.log('Account verification successful:', accountInfo.id, accountInfo.username);
@@ -139,7 +139,7 @@ export class InstagramPostingService {
 
       // Check if this is a Business or Creator account
       // Personal accounts cannot post via Instagram Graph API
-      if (!account.instagramAccountId || account.instagramAccountId === 'instagram_user') {
+      if (!account.instagramUserId || account.instagramUserId === 'instagram_user') {
         throw new HttpException(
           'Instagram posting is only available for Business and Creator accounts. Please convert your Instagram account to Business or Creator type and reconnect.',
           HttpStatus.BAD_REQUEST,
@@ -150,13 +150,13 @@ export class InstagramPostingService {
       let result;
       let postingEndpoint: string;
       
-      if (account.instagramAccountId) {
+      if (account.instagramUserId) {
         // Direct Instagram account access (2024 API supports this for posting!)
-        postingEndpoint = account.instagramAccountId;
+        postingEndpoint = account.instagramUserId;
         
-        if (account.facebookPageId) {
+        if (account.instagramUsername) {
           console.log('Using direct Instagram Account ID (legacy Facebook Page setup):', postingEndpoint);
-          console.log('Associated Facebook Page ID:', account.facebookPageId);
+          console.log('Associated Facebook Page ID:', account.instagramUsername);
         } else {
           console.log('Using direct Instagram Account ID (NEW 2024 API - no Facebook Page needed!):', postingEndpoint);
         }
@@ -241,7 +241,7 @@ export class InstagramPostingService {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
 
-      if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
+      if (!account.isConnected || !account.accessToken || !account.instagramUserId) {
         throw new HttpException(
           'Instagram account not connected. Please connect your Instagram account first.',
           HttpStatus.BAD_REQUEST,
@@ -304,17 +304,17 @@ export class InstagramPostingService {
         };
       }
 
-      const isConnected = account.isConnected && !!account.accessToken && !!account.instagramAccountId;
+      const isConnected = account.isConnected && !!account.accessToken && !!account.instagramUserId;
       let tokenValid = false;
       let accountInfo: any = null;
 
-      if (isConnected && account.accessToken && account.instagramAccountId) {
+        if (isConnected && account.accessToken && account.instagramUserId) {
         tokenValid = await this.instagramGraphService.validateAccessToken(account.accessToken);
         
         if (tokenValid) {
           try {
             accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
-              account.instagramAccountId,
+              account.instagramUserId,
               account.accessToken,
             );
           } catch (error) {

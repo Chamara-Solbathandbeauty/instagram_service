@@ -3,10 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AIAgentService } from './ai-agent.service';
 import { ContentAgentService } from './content-agent.service';
 import { AIController } from './ai.controller';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../schedules/posting-schedule.entity';
 import { ScheduleContent } from '../schedules/schedule-content.entity';
-import { Content } from '../content/content.entity';
+import { Content } from '../content/entities/content.entity';
 import { Media } from '../content/media.entity';
 import { ScheduleTimeSlot } from '../schedules/schedule-time-slot.entity';
 

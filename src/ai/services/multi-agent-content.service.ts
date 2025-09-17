@@ -4,11 +4,11 @@ import { Repository } from 'typeorm';
 import { ImageGenerationAgent } from '../agents/image-generation-agent';
 import { ReelGenerationAgent } from '../agents/reel-generation-agent';
 import { VideoGenerationAgent } from '../agents/video-generation-agent';
-import { IgAccount } from '../../users/ig-account.entity';
+import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { ScheduleTimeSlot } from '../../schedules/schedule-time-slot.entity';
 import { ScheduleContent, ScheduleContentStatus } from '../../schedules/schedule-content.entity';
-import { Content } from '../../content/content.entity';
+import { Content } from '../../content/entities/content.entity';
 
 export interface ContentGenerationResult {
   success: boolean;

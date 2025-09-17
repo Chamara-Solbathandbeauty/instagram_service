@@ -3,10 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MediaStorageService } from '../services/media-storage.service';
 import { VertexAIMediaService } from '../services/vertex-ai-media.service';
-import { IgAccount } from '../../users/ig-account.entity';
+import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { ScheduleTimeSlot } from '../../schedules/schedule-time-slot.entity';
-import { Content, ContentStatus, ContentType } from '../../content/content.entity';
+import { Content, ContentStatus, ContentType } from '../../content/entities/content.entity';
 import { Media } from '../../content/media.entity';
 
 export interface ReelContentResult {

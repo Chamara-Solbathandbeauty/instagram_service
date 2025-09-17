@@ -14,7 +14,7 @@ import { CreateScheduleContentDto } from './dto/create-schedule-content.dto';
 import { UpdateScheduleContentDto } from './dto/update-schedule-content.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
-import { ScheduleContentStatus } from './entities/schedule-content.entity';
+import { ScheduleContentStatus } from '../schedules/schedule-content.entity';
 
 @Controller('schedule-content')
 @UseGuards(JwtAuthGuard)

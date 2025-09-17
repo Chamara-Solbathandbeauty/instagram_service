@@ -8,7 +8,7 @@ import { PostingSchedule } from './posting-schedule.entity';
 import { ScheduleTimeSlot } from './schedule-time-slot.entity';
 import { ScheduleContent } from './schedule-content.entity';
 import { ContentQueue } from './content-queue.entity';
-import { Content } from '../content/content.entity';
+import { Content } from '../content/entities/content.entity';
 
 @Module({
   imports: [

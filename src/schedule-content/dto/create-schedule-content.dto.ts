@@ -7,7 +7,7 @@ import {
   IsDateString,
   IsInt,
 } from 'class-validator';
-import { ScheduleContentStatus } from '../entities/schedule-content.entity';
+import { ScheduleContentStatus } from '../../schedules/schedule-content.entity';
 
 export class CreateScheduleContentDto {
   @IsNumber()

@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { Schedule } from './schedule.entity';
-import { ScheduleContent } from '../../schedule-content/entities/schedule-content.entity';
+import { ScheduleContent } from '../schedule-content.entity';
 
 export enum PostType {
   REEL = 'reel',

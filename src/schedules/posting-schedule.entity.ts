@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { ScheduleTimeSlot } from './schedule-time-slot.entity';
 import { ScheduleContent } from './schedule-content.entity';
 import { ContentQueue } from './content-queue.entity';

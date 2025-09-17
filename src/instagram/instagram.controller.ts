@@ -17,8 +17,8 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { InstagramGraphService } from './instagram-graph.service';
 import { InstagramPostingService } from './instagram-posting.service';
-import { IgAccount } from '../users/ig-account.entity';
-import { Content, ContentStatus } from '../content/content.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
+import { Content, ContentStatus } from '../content/entities/content.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -157,12 +157,12 @@ export class InstagramController {
       tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + longLivedToken.expires_in);
 
       await this.igAccountRepository.update(account.id, {
-        instagramAccountId: instagramAccountId,
+        instagramUserId: instagramAccountId,
         facebookPageId: facebookPageId,
         accessToken: longLivedToken.access_token,
         tokenExpiresAt: tokenExpiresAt,
         isConnected: true,
-        username: instagramInfo.username,
+        instagramUsername: instagramInfo.username,
         profilePictureUrl: instagramInfo.profile_picture_url,
         followersCount: instagramInfo.followers_count,
         followingCount: instagramInfo.follows_count,

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Media, MediaType } from '../../content/media.entity';
-import { Content } from '../../content/content.entity';
+import { Content } from '../../content/entities/content.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';

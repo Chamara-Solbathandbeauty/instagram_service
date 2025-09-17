@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { AIGeneratedSchedule, AIGeneratedScheduleSchema, scheduleJsonSchema } from './schemas/schedule-schema';
 import { LLMService } from './services/llm.service';
 

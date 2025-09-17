@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { Media } from '../media.entity';
-import { ScheduleContent } from '../../schedule-content/entities/schedule-content.entity';
+import { ScheduleContent } from '../../schedules/schedule-content.entity';
 
 export const ContentType = {
   REEL: 'reel',

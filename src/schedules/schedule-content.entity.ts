@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { PostingSchedule } from './posting-schedule.entity';
 import { ScheduleTimeSlot } from './schedule-time-slot.entity';
-import { Content } from '../content/content.entity';
+import { Content } from '../content/entities/content.entity';
 
 export enum ScheduleContentStatus {
   QUEUED = 'queued',

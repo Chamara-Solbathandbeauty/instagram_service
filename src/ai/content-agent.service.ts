@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { z } from 'zod';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../schedules/posting-schedule.entity';
 import { ScheduleContent } from '../schedules/schedule-content.entity';
 import { Content, ContentStatus } from '../content/entities/content.entity';

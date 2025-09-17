@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
-import { IgAccount } from './ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { CreateIgAccountDto } from '../ig-accounts/dto/create-ig-account.dto';
 import { UpdateIgAccountDto } from '../ig-accounts/dto/update-ig-account.dto';
 import { CreateUserDto } from './dto/create-user.dto';

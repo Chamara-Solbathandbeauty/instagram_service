@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AIAgentService } from './ai-agent.service';
-import { IgAccountType } from '../users/ig-account.entity';
-import { IgAccount } from '../users/ig-account.entity';
+import { IgAccountType } from '../ig-accounts/entities/ig-account.entity';
+import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
@@ -34,14 +34,19 @@ describe('AIAgentService', () => {
         user: null as any, // Mock user relationship
         instagramAccountId: null,
         facebookPageId: null,
+        instagramUserId: null,
+        instagramUsername: null,
+        username: null,
+        profilePictureUrl: null,
+        followersCount: 0,
+        followingCount: 0,
+        mediaCount: 0,
         accessToken: null,
         tokenExpiresAt: null,
         isConnected: false,
-        username: null,
-        profilePictureUrl: null,
-        followersCount: null,
-        followingCount: null,
-        mediaCount: null,
+        content: [],
+        schedules: [],
+        images: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
