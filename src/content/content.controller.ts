@@ -8,7 +8,12 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { ContentService } from './content.service';
 import { CreateContentDto } from './dto/create-content.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
@@ -23,8 +28,32 @@ export class ContentController {
   constructor(private readonly contentService: ContentService) {}
 
   @Post()
-  create(@GetUser() user: any, @Body() createContentDto: CreateContentDto) {
-    return this.contentService.create(user.id, createContentDto);
+  @UseInterceptors(
+    FilesInterceptor('mediaFiles', 10, {
+      storage: diskStorage({
+        destination: './uploads/media',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
+          callback(null, filename);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|mp4|mov|avi)$/)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Only image and video files are allowed!'), false);
+        }
+      },
+    }),
+  )
+  create(
+    @GetUser() user: any, 
+    @Body() createContentDto: CreateContentDto,
+    @UploadedFiles() mediaFiles?: Express.Multer.File[]
+  ) {
+    return this.contentService.create(user.id, createContentDto, mediaFiles);
   }
 
   @Get()

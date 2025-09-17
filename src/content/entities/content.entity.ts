@@ -9,7 +9,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
-import { ContentMedia } from './content-media.entity';
+import { Media } from '../media.entity';
 import { ScheduleContent } from '../../schedule-content/entities/schedule-content.entity';
 
 export enum ContentType {
@@ -72,8 +72,8 @@ export class Content {
   @Column()
   accountId: number;
 
-  @OneToMany(() => ContentMedia, (media) => media.content, { cascade: true })
-  media: ContentMedia[];
+  @OneToMany(() => Media, (media) => media.content, { cascade: true })
+  media: Media[];
 
   @OneToMany(() => ScheduleContent, (scheduleContent) => scheduleContent.content)
   scheduleContent: ScheduleContent[];

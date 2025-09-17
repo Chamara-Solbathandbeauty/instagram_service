@@ -3,12 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ContentService } from './content.service';
 import { ContentController } from './content.controller';
 import { Content } from './entities/content.entity';
-import { ContentMedia } from './entities/content-media.entity';
+import { Media } from './media.entity';
 import { IgAccountsModule } from '../ig-accounts/ig-accounts.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Content, ContentMedia]),
+    TypeOrmModule.forFeature([Content, Media]),
     IgAccountsModule,
   ],
   controllers: [ContentController],

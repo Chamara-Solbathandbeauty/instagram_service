@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Content, ContentType, ContentStatus } from './entities/content.entity';
-import { ContentMedia } from './entities/content-media.entity';
+import { Media } from './media.entity';
 import { IgAccountsService } from '../ig-accounts/ig-accounts.service';
 import { CreateContentDto } from './dto/create-content.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
@@ -18,17 +18,35 @@ export class ContentService {
   constructor(
     @InjectRepository(Content)
     private contentRepository: Repository<Content>,
-    @InjectRepository(ContentMedia)
-    private contentMediaRepository: Repository<ContentMedia>,
+    @InjectRepository(Media)
+    private mediaRepository: Repository<Media>,
     private igAccountsService: IgAccountsService,
   ) {}
 
-  async create(userId: string, createContentDto: CreateContentDto): Promise<Content> {
+  async create(userId: string, createContentDto: CreateContentDto, mediaFiles?: Express.Multer.File[]): Promise<Content> {
     // Verify user owns the account
     await this.igAccountsService.findOne(createContentDto.accountId, userId);
 
     const content = this.contentRepository.create(createContentDto);
-    return this.contentRepository.save(content);
+    const savedContent = await this.contentRepository.save(content);
+
+    // Handle media files if provided
+    if (mediaFiles && mediaFiles.length > 0) {
+      for (const file of mediaFiles) {
+        const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
+        const createMediaDto: CreateContentMediaDto = {
+          fileName: file.filename,
+          filePath: `media/${file.filename}`,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          mediaType: mediaType as any,
+        };
+
+        await this.addMedia(savedContent.id, userId, createMediaDto);
+      }
+    }
+
+    return savedContent;
   }
 
   async findAll(
@@ -135,28 +153,28 @@ export class ContentService {
     contentId: number,
     userId: string,
     createMediaDto: CreateContentMediaDto,
-  ): Promise<ContentMedia> {
+  ): Promise<Media> {
     const content = await this.findOne(contentId, userId);
 
-    const media = this.contentMediaRepository.create({
+    const media = this.mediaRepository.create({
       ...createMediaDto,
       contentId: content.id,
     });
 
-    return this.contentMediaRepository.save(media);
+    return this.mediaRepository.save(media);
   }
 
-  async getMedia(contentId: number, userId: string): Promise<ContentMedia[]> {
+  async getMedia(contentId: number, userId: string): Promise<Media[]> {
     const content = await this.findOne(contentId, userId);
     
-    return this.contentMediaRepository.find({
+    return this.mediaRepository.find({
       where: { contentId: content.id },
       order: { createdAt: 'ASC' },
     });
   }
 
   async deleteMedia(mediaId: number, userId: string): Promise<void> {
-    const media = await this.contentMediaRepository.findOne({
+    const media = await this.mediaRepository.findOne({
       where: { id: mediaId },
       relations: ['content', 'content.account'],
     });
@@ -169,7 +187,7 @@ export class ContentService {
       throw new ForbiddenException('Access denied to this media');
     }
 
-    await this.contentMediaRepository.remove(media);
+    await this.mediaRepository.remove(media);
   }
 }
 

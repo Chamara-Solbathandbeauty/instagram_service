@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, IsNumber, IsEnum } from 'class-validator';
-import { MediaType } from '../entities/content-media.entity';
+import { MediaType } from '../media.entity';
 
 export class CreateContentMediaDto {
   @IsString()
