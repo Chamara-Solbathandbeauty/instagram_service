@@ -58,7 +58,7 @@ export class IgAccount {
   user: User;
 
   @Column()
-  userId: number;
+  userId: string;
 
   @OneToMany(() => Content, (content) => content.account)
   content: Content[];

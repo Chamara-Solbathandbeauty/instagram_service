@@ -23,7 +23,7 @@ export class ContentService {
     private igAccountsService: IgAccountsService,
   ) {}
 
-  async create(userId: number, createContentDto: CreateContentDto): Promise<Content> {
+  async create(userId: string, createContentDto: CreateContentDto): Promise<Content> {
     // Verify user owns the account
     await this.igAccountsService.findOne(createContentDto.accountId, userId);
 
@@ -32,7 +32,7 @@ export class ContentService {
   }
 
   async findAll(
-    userId: number,
+    userId: string,
     filters?: {
       accountId?: number;
       type?: ContentType;
@@ -82,7 +82,7 @@ export class ContentService {
     };
   }
 
-  async findOne(id: number, userId: number): Promise<Content> {
+  async findOne(id: number, userId: string): Promise<Content> {
     const content = await this.contentRepository
       .createQueryBuilder('content')
       .leftJoinAndSelect('content.account', 'account')
@@ -113,7 +113,7 @@ export class ContentService {
 
   async update(
     id: number,
-    userId: number,
+    userId: string,
     updateContentDto: UpdateContentDto,
   ): Promise<Content> {
     const content = await this.findOne(id, userId);
@@ -125,7 +125,7 @@ export class ContentService {
     return this.findOne(id, userId);
   }
 
-  async remove(id: number, userId: number): Promise<void> {
+  async remove(id: number, userId: string): Promise<void> {
     const content = await this.findOne(id, userId);
     await this.contentRepository.remove(content);
   }
@@ -133,7 +133,7 @@ export class ContentService {
   // Media operations
   async addMedia(
     contentId: number,
-    userId: number,
+    userId: string,
     createMediaDto: CreateContentMediaDto,
   ): Promise<ContentMedia> {
     const content = await this.findOne(contentId, userId);
@@ -146,7 +146,7 @@ export class ContentService {
     return this.contentMediaRepository.save(media);
   }
 
-  async getMedia(contentId: number, userId: number): Promise<ContentMedia[]> {
+  async getMedia(contentId: number, userId: string): Promise<ContentMedia[]> {
     const content = await this.findOne(contentId, userId);
     
     return this.contentMediaRepository.find({
@@ -155,7 +155,7 @@ export class ContentService {
     });
   }
 
-  async deleteMedia(mediaId: number, userId: number): Promise<void> {
+  async deleteMedia(mediaId: number, userId: string): Promise<void> {
     const media = await this.contentMediaRepository.findOne({
       where: { id: mediaId },
       relations: ['content', 'content.account'],

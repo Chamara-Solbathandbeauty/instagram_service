@@ -33,7 +33,7 @@ export class Content {
   @Column({ nullable: true })
   caption: string;
 
-  @Column('text', { array: true, nullable: true })
+  @Column('json', { nullable: true })
   hashTags: string[];
 
   @Column()

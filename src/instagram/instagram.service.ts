@@ -19,7 +19,7 @@ export class InstagramService {
     this.redirectUri = this.configService.get<string>('INSTAGRAM_REDIRECT_URI');
   }
 
-  async getAuthUrl(accountId: number, userId: number): Promise<{ authUrl: string }> {
+  async getAuthUrl(accountId: number, userId: string): Promise<{ authUrl: string }> {
     const account = await this.igAccountsService.findOne(accountId, userId);
     
     if (!this.clientId) {
@@ -112,7 +112,7 @@ export class InstagramService {
     }
   }
 
-  async getStatus(accountId: number, userId: number): Promise<any> {
+  async getStatus(accountId: number, userId: string): Promise<any> {
     const account = await this.igAccountsService.findOne(accountId, userId);
 
     return {
@@ -124,7 +124,7 @@ export class InstagramService {
     };
   }
 
-  async testConnection(accountId: number, userId: number): Promise<any> {
+  async testConnection(accountId: number, userId: string): Promise<any> {
     const account = await this.igAccountsService.findOne(accountId, userId);
 
     if (!account.isConnected || !account.accessToken) {
@@ -158,7 +158,7 @@ export class InstagramService {
     }
   }
 
-  async disconnect(accountId: number, userId: number): Promise<any> {
+  async disconnect(accountId: number, userId: string): Promise<any> {
     const account = await this.igAccountsService.findOne(accountId, userId);
 
     await this.igAccountsService.updateInstagramConnection(accountId, {
@@ -175,7 +175,7 @@ export class InstagramService {
     };
   }
 
-  async postContent(data: { contentId: number; accountId: number }, userId: number): Promise<any> {
+  async postContent(data: { contentId: number; accountId: number }, userId: string): Promise<any> {
     const account = await this.igAccountsService.findOne(data.accountId, userId);
     const content = await this.contentService.findOne(data.contentId, userId);
 

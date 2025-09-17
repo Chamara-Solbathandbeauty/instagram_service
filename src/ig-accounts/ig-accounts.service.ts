@@ -16,7 +16,7 @@ export class IgAccountsService {
     private igAccountRepository: Repository<IgAccount>,
   ) {}
 
-  async create(userId: number, createIgAccountDto: CreateIgAccountDto): Promise<IgAccount> {
+  async create(userId: string, createIgAccountDto: CreateIgAccountDto): Promise<IgAccount> {
     const igAccount = this.igAccountRepository.create({
       ...createIgAccountDto,
       userId,
@@ -25,14 +25,14 @@ export class IgAccountsService {
     return this.igAccountRepository.save(igAccount);
   }
 
-  async findAllByUser(userId: number): Promise<IgAccount[]> {
+  async findAllByUser(userId: string): Promise<IgAccount[]> {
     return this.igAccountRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
   }
 
-  async findOne(id: number, userId: number): Promise<IgAccount> {
+  async findOne(id: number, userId: string): Promise<IgAccount> {
     const igAccount = await this.igAccountRepository.findOne({
       where: { id },
     });
@@ -62,7 +62,7 @@ export class IgAccountsService {
 
   async update(
     id: number,
-    userId: number,
+    userId: string,
     updateIgAccountDto: UpdateIgAccountDto,
   ): Promise<IgAccount> {
     const igAccount = await this.findOne(id, userId);
@@ -71,7 +71,7 @@ export class IgAccountsService {
     return this.findOne(id, userId);
   }
 
-  async remove(id: number, userId: number): Promise<void> {
+  async remove(id: number, userId: string): Promise<void> {
     const igAccount = await this.findOne(id, userId);
     await this.igAccountRepository.remove(igAccount);
   }

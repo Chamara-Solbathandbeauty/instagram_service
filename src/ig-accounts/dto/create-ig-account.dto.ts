@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsEnum } from 'class-validator';
+import { IgAccountType } from '../../users/ig-account.entity';
 
 export class CreateIgAccountDto {
   @IsNotEmpty()
@@ -18,7 +19,7 @@ export class CreateIgAccountDto {
   tone?: string;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsEnum(IgAccountType)
+  type?: IgAccountType;
 }
 

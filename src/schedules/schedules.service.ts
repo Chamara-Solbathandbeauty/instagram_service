@@ -1,124 +1,116 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Schedule, ScheduleStatus } from './entities/schedule.entity';
-import { TimeSlot } from './entities/time-slot.entity';
-import { IgAccountsService } from '../ig-accounts/ig-accounts.service';
-import { CreateScheduleDto } from './dto/create-schedule.dto';
-import { UpdateScheduleDto } from './dto/update-schedule.dto';
+import { PostingSchedule } from './posting-schedule.entity';
+import { ScheduleTimeSlot } from './schedule-time-slot.entity';
+import { CreatePostingScheduleDto } from './dto/create-posting-schedule.dto';
+import { UpdatePostingScheduleDto } from './dto/update-posting-schedule.dto';
+import { ScheduleFilterDto } from './dto/schedule-filter.dto';
 
 @Injectable()
 export class SchedulesService {
   constructor(
-    @InjectRepository(Schedule)
-    private scheduleRepository: Repository<Schedule>,
-    @InjectRepository(TimeSlot)
-    private timeSlotRepository: Repository<TimeSlot>,
-    private igAccountsService: IgAccountsService,
+    @InjectRepository(PostingSchedule)
+    private scheduleRepository: Repository<PostingSchedule>,
+    @InjectRepository(ScheduleTimeSlot)
+    private timeSlotRepository: Repository<ScheduleTimeSlot>,
   ) {}
 
-  async create(userId: number, createScheduleDto: CreateScheduleDto): Promise<Schedule> {
-    // Verify user owns the account
-    await this.igAccountsService.findOne(createScheduleDto.accountId, userId);
+  private normalizeTimeFormat(time: string): string {
+    // Convert "HH:MM" to "HH:MM:SS" format
+    if (time.match(/^\d{1,2}:\d{2}$/)) {
+      return `${time}:00`;
+    }
+    return time;
+  }
+
+  async create(userId: string, createScheduleDto: CreatePostingScheduleDto): Promise<PostingSchedule> {
+    return this.createSchedule(userId, createScheduleDto);
+  }
+
+  async createSchedule(userId: string, createScheduleDto: CreatePostingScheduleDto): Promise<PostingSchedule> {
+    // Verify that the account belongs to the user
+    const accountExists = await this.scheduleRepository.query(
+      'SELECT id FROM ig_accounts WHERE id = $1 AND "userId" = $2',
+      [createScheduleDto.accountId, userId]
+    );
+
+    if (!accountExists || accountExists.length === 0) {
+      throw new BadRequestException('Account not found or access denied');
+    }
 
     const { timeSlots, ...scheduleData } = createScheduleDto;
 
+    // Create the main schedule
     const schedule = this.scheduleRepository.create(scheduleData);
     const savedSchedule = await this.scheduleRepository.save(schedule);
 
     // Create time slots if provided
     if (timeSlots && timeSlots.length > 0) {
-      const timeSlotEntities = timeSlots.map(timeSlot =>
+      const scheduleTimeSlots = timeSlots.map(slotData => 
         this.timeSlotRepository.create({
-          ...timeSlot,
+          ...slotData,
+          startTime: this.normalizeTimeFormat(slotData.startTime),
+          endTime: this.normalizeTimeFormat(slotData.endTime),
           scheduleId: savedSchedule.id,
         })
       );
-      await this.timeSlotRepository.save(timeSlotEntities);
+      await this.timeSlotRepository.save(scheduleTimeSlots);
     }
 
-    return this.findOne(savedSchedule.id, userId);
+    return this.getScheduleById(savedSchedule.id);
   }
 
-  async findAll(
-    userId: number,
-    filters?: {
-      accountId?: number;
-      status?: ScheduleStatus;
-      isEnabled?: boolean;
-      page?: number;
-      limit?: number;
-    },
-  ) {
+  async getSchedules(userId: string, filters: ScheduleFilterDto = {}): Promise<{ schedules: PostingSchedule[]; total: number }> {
     const queryBuilder = this.scheduleRepository
       .createQueryBuilder('schedule')
       .leftJoinAndSelect('schedule.account', 'account')
       .leftJoinAndSelect('schedule.timeSlots', 'timeSlots')
       .where('account.userId = :userId', { userId });
 
-    if (filters?.accountId) {
-      queryBuilder.andWhere('schedule.accountId = :accountId', {
-        accountId: filters.accountId,
-      });
+    if (filters.accountId) {
+      queryBuilder.andWhere('schedule.accountId = :accountId', { accountId: filters.accountId });
     }
 
-    if (filters?.status) {
+    if (filters.status) {
       queryBuilder.andWhere('schedule.status = :status', { status: filters.status });
     }
 
-    if (filters?.isEnabled !== undefined) {
-      queryBuilder.andWhere('schedule.isEnabled = :isEnabled', {
-        isEnabled: filters.isEnabled,
-      });
+    if (filters.isEnabled !== undefined) {
+      queryBuilder.andWhere('schedule.isEnabled = :isEnabled', { isEnabled: filters.isEnabled });
     }
 
-    queryBuilder
-      .orderBy('schedule.createdAt', 'DESC')
-      .addOrderBy('timeSlots.dayOfWeek', 'ASC')
-      .addOrderBy('timeSlots.startTime', 'ASC');
-
-    const page = filters?.page || 1;
-    const limit = filters?.limit || 20;
+    const page = filters.page || 1;
+    const limit = filters.limit || 10;
     const skip = (page - 1) * limit;
 
     queryBuilder.skip(skip).take(limit);
+    queryBuilder.orderBy('schedule.createdAt', 'DESC');
 
     const [schedules, total] = await queryBuilder.getManyAndCount();
 
-    return {
-      data: schedules,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return { schedules, total };
   }
 
-  async findOne(id: number, userId: number): Promise<Schedule> {
-    const schedule = await this.scheduleRepository
-      .createQueryBuilder('schedule')
-      .leftJoinAndSelect('schedule.account', 'account')
-      .leftJoinAndSelect('schedule.timeSlots', 'timeSlots')
-      .where('schedule.id = :id', { id })
-      .andWhere('account.userId = :userId', { userId })
-      .orderBy('timeSlots.dayOfWeek', 'ASC')
-      .addOrderBy('timeSlots.startTime', 'ASC')
-      .getOne();
+  async findOne(scheduleId: number, userId: string): Promise<PostingSchedule> {
+    const schedule = await this.scheduleRepository.findOne({
+      where: { id: scheduleId },
+      relations: ['account', 'timeSlots'],
+    });
 
     if (!schedule) {
       throw new NotFoundException('Schedule not found');
     }
 
+    // Verify ownership
+    if (schedule.account.userId !== userId) {
+      throw new BadRequestException('Access denied');
+    }
+
     return schedule;
   }
 
-  async findOneById(id: number): Promise<Schedule> {
+  async getScheduleById(id: number): Promise<PostingSchedule> {
     const schedule = await this.scheduleRepository.findOne({
       where: { id },
       relations: ['account', 'timeSlots'],
@@ -131,78 +123,82 @@ export class SchedulesService {
     return schedule;
   }
 
-  async findByAccount(accountId: number, userId: number): Promise<Schedule[]> {
-    // Verify user owns the account
-    await this.igAccountsService.findOne(accountId, userId);
+  async updateSchedule(id: number, userId: string, updateScheduleDto: UpdatePostingScheduleDto): Promise<PostingSchedule> {
+    const schedule = await this.getScheduleById(id);
+
+    // Verify ownership
+    if (schedule.account.userId !== userId) {
+      throw new BadRequestException('Access denied');
+    }
+
+    const { timeSlots, ...scheduleData } = updateScheduleDto;
+
+    // Update main schedule
+    Object.assign(schedule, scheduleData);
+    await this.scheduleRepository.save(schedule);
+
+    // Update time slots if provided
+    if (timeSlots) {
+      // Delete existing time slots
+      await this.timeSlotRepository.delete({ scheduleId: id });
+      
+      // Create new time slots
+      if (timeSlots.length > 0) {
+        const scheduleTimeSlots = timeSlots.map(slotData => 
+          this.timeSlotRepository.create({
+            ...slotData,
+            startTime: this.normalizeTimeFormat(slotData.startTime),
+            endTime: this.normalizeTimeFormat(slotData.endTime),
+            scheduleId: id,
+          })
+        );
+        await this.timeSlotRepository.save(scheduleTimeSlots);
+      }
+    }
+
+    return this.getScheduleById(id);
+  }
+
+  async deleteSchedule(id: number, userId: string): Promise<void> {
+    const schedule = await this.getScheduleById(id);
+
+    // Verify ownership
+    if (schedule.account.userId !== userId) {
+      throw new BadRequestException('Access denied');
+    }
+
+    await this.scheduleRepository.delete(id);
+  }
+
+  async toggleScheduleStatus(id: number, userId: string): Promise<PostingSchedule> {
+    const schedule = await this.getScheduleById(id);
+
+    // Verify ownership
+    if (schedule.account.userId !== userId) {
+      throw new BadRequestException('Access denied');
+    }
+
+    schedule.isEnabled = !schedule.isEnabled;
+    await this.scheduleRepository.save(schedule);
+
+    return this.getScheduleById(id);
+  }
+
+  async getSchedulesByAccount(accountId: number, userId: string): Promise<PostingSchedule[]> {
+    // Verify account ownership
+    const accountExists = await this.scheduleRepository.query(
+      'SELECT id FROM ig_accounts WHERE id = $1 AND "userId" = $2',
+      [accountId, userId]
+    );
+
+    if (!accountExists || accountExists.length === 0) {
+      throw new BadRequestException('Account not found or access denied');
+    }
 
     return this.scheduleRepository.find({
       where: { accountId },
       relations: ['timeSlots'],
-      order: {
-        createdAt: 'DESC',
-        timeSlots: {
-          dayOfWeek: 'ASC',
-          startTime: 'ASC',
-        },
-      },
-    });
-  }
-
-  async update(
-    id: number,
-    userId: number,
-    updateScheduleDto: UpdateScheduleDto,
-  ): Promise<Schedule> {
-    const schedule = await this.findOne(id, userId);
-
-    const { timeSlots, accountId, ...scheduleData } = updateScheduleDto as any;
-
-    await this.scheduleRepository.update(id, scheduleData);
-
-    // Update time slots if provided
-    if (timeSlots) {
-      // Remove existing time slots
-      await this.timeSlotRepository.delete({ scheduleId: id });
-
-      // Create new time slots
-      if (timeSlots.length > 0) {
-        const timeSlotEntities = timeSlots.map(timeSlot =>
-          this.timeSlotRepository.create({
-            ...timeSlot,
-            scheduleId: id,
-          })
-        );
-        await this.timeSlotRepository.save(timeSlotEntities);
-      }
-    }
-
-    return this.findOne(id, userId);
-  }
-
-  async remove(id: number, userId: number): Promise<void> {
-    const schedule = await this.findOne(id, userId);
-    await this.scheduleRepository.remove(schedule);
-  }
-
-  async toggleStatus(id: number, userId: number): Promise<Schedule> {
-    const schedule = await this.findOne(id, userId);
-    
-    const newStatus = schedule.status === ScheduleStatus.ACTIVE 
-      ? ScheduleStatus.PAUSED 
-      : ScheduleStatus.ACTIVE;
-
-    await this.scheduleRepository.update(id, { status: newStatus });
-    return this.findOne(id, userId);
-  }
-
-  async findActiveSchedules(): Promise<Schedule[]> {
-    return this.scheduleRepository.find({
-      where: {
-        status: ScheduleStatus.ACTIVE,
-        isEnabled: true,
-      },
-      relations: ['account', 'timeSlots'],
+      order: { createdAt: 'DESC' },
     });
   }
 }
-

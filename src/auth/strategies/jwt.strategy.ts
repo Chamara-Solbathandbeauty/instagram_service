@@ -18,10 +18,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
-    // Ensure payload.sub is a number (handle both string and number IDs)
-    const userId = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : payload.sub;
+    // Handle UUID string IDs (no need to parse as integer)
+    const userId = payload.sub;
     
-    if (isNaN(userId)) {
+    if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid user ID in JWT token');
     }
     

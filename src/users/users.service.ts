@@ -1,111 +1,182 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcrypt';
-import { User, UserRole } from './entities/user.entity';
+import { User } from './entities/user.entity';
+import { IgAccount } from './ig-account.entity';
+import { CreateIgAccountDto } from '../ig-accounts/dto/create-ig-account.dto';
+import { UpdateIgAccountDto } from '../ig-accounts/dto/update-ig-account.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { PostingSchedule, ScheduleStatus } from '../schedules/posting-schedule.entity';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(IgAccount)
+    private igAccountRepository: Repository<IgAccount>,
+    @InjectRepository(PostingSchedule)
+    private postingScheduleRepository: Repository<PostingSchedule>,
   ) {}
-
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findOne({
-      where: { email: createUserDto.email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('Email already exists');
-    }
-
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
-    const user = this.userRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-      role: createUserDto.role || UserRole.USER,
-    });
-
-    return this.userRepository.save(user);
-  }
 
   async findAll(): Promise<User[]> {
     return this.userRepository.find({
-      select: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt', 'updatedAt'],
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'isActive', 'createdAt'],
     });
   }
 
-  async findOne(id: number): Promise<User> {
-    const user = await this.userRepository.findOne({
+  async findById(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ 
       where: { id },
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'isActive', 'createdAt'],
     });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return user;
   }
 
-  async findByEmail(email: string): Promise<User> {
-    return this.userRepository.findOne({
+  async findOne(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ 
+      where: { id },
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'isActive', 'createdAt'],
+    });
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({ 
       where: { email },
     });
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const user = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+    });
+    return this.userRepository.save(user);
+  }
 
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = await this.userRepository.findOne({
-        where: { email: updateUserDto.email },
-      });
-      if (existingUser) {
-        throw new ConflictException('Email already exists');
-      }
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
+    const updateData: any = { ...updateUserDto };
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 10);
     }
-
-    if (updateUserDto.password) {
-      if (!updateUserDto.currentPassword) {
-        throw new BadRequestException('Current password is required to change password');
-      }
-
-      const isCurrentPasswordValid = await bcrypt.compare(
-        updateUserDto.currentPassword,
-        user.password,
-      );
-
-      if (!isCurrentPasswordValid) {
-        throw new BadRequestException('Current password is incorrect');
-      }
-
-      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
-    }
-
-    delete updateUserDto.currentPassword;
-
-    await this.userRepository.update(id, updateUserDto);
+    await this.userRepository.update(id, updateData);
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<void> {
-    const user = await this.findOne(id);
-    await this.userRepository.remove(user);
+  async remove(id: string): Promise<void> {
+    await this.userRepository.delete(id);
   }
 
-  async getProfile(userId: number) {
-    const user = await this.findOne(userId);
-    const { password, ...result } = user;
-    return result;
+  async getProfile(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ 
+      where: { id },
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt'],
+    });
+  }
+
+  async updateUser(id: string, updateData: Partial<User>): Promise<User | null> {
+    await this.userRepository.update(id, updateData);
+    return this.findById(id);
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await this.userRepository.delete(id);
+  }
+
+  // IG Account CRUD Operations
+  async createIgAccount(userId: string, createIgAccountDto: CreateIgAccountDto): Promise<IgAccount> {
+    const igAccount = this.igAccountRepository.create({
+      userId,
+      ...createIgAccountDto,
+    });
+    return this.igAccountRepository.save(igAccount);
+  }
+
+  async findIgAccountsByUserId(userId: string): Promise<IgAccount[]> {
+    const accounts = await this.igAccountRepository.find({
+      where: { userId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+
+    // Add schedule information to each account
+    for (const account of accounts) {
+      const activeSchedule = await this.postingScheduleRepository.findOne({
+        where: { 
+          accountId: account.id,
+          isEnabled: true,
+          status: ScheduleStatus.ACTIVE
+        },
+        select: ['id', 'name', 'description', 'status', 'isEnabled'],
+        order: { createdAt: 'DESC' }
+      });
+      
+      (account as any).activeSchedule = activeSchedule;
+    }
+
+    return accounts;
+  }
+
+  async findIgAccountById(id: number): Promise<IgAccount | null> {
+    return this.igAccountRepository.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+  }
+
+  async findIgAccountByIdAndUserId(id: number, userId: string): Promise<IgAccount | null> {
+    const account = await this.igAccountRepository.findOne({
+      where: { id, userId },
+      relations: ['user'],
+    });
+
+    if (account) {
+      // Add schedule information to the account
+      const activeSchedule = await this.postingScheduleRepository.findOne({
+        where: { 
+          accountId: account.id,
+          isEnabled: true,
+          status: ScheduleStatus.ACTIVE
+        },
+        select: ['id', 'name', 'description', 'status', 'isEnabled'],
+        order: { createdAt: 'DESC' }
+      });
+      
+      (account as any).activeSchedule = activeSchedule;
+    }
+
+    return account;
+  }
+
+  async updateIgAccount(id: number, userId: string, updateIgAccountDto: UpdateIgAccountDto): Promise<IgAccount | null> {
+    const igAccount = await this.findIgAccountByIdAndUserId(id, userId);
+    if (!igAccount) {
+      return null;
+    }
+
+    await this.igAccountRepository.update(id, {
+      ...updateIgAccountDto,
+      type: updateIgAccountDto.type as any // TypeORM update issue workaround
+    });
+    return this.findIgAccountById(id);
+  }
+
+  async deleteIgAccount(id: number, userId: string): Promise<boolean> {
+    const igAccount = await this.findIgAccountByIdAndUserId(id, userId);
+    if (!igAccount) {
+      return false;
+    }
+
+    await this.igAccountRepository.delete(id);
+    return true;
+  }
+
+  async findAllIgAccounts(): Promise<IgAccount[]> {
+    return this.igAccountRepository.find({
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
   }
 }
-

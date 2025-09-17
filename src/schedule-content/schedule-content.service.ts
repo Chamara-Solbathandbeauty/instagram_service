@@ -21,19 +21,33 @@ export class ScheduleContentService {
   ) {}
 
   async create(
-    userId: number,
+    userId: string,
     createScheduleContentDto: CreateScheduleContentDto,
   ): Promise<ScheduleContent> {
+    console.log('🔍 ScheduleContentService Debug: Creating schedule content record...');
+    console.log('🔍 ScheduleContentService Debug: - userId:', userId);
+    console.log('🔍 ScheduleContentService Debug: - DTO:', createScheduleContentDto);
+    
     // Verify user owns the schedule and content
+    console.log('🔍 ScheduleContentService Debug: Verifying schedule ownership...');
     await this.schedulesService.findOne(createScheduleContentDto.scheduleId, userId);
+    console.log('✅ ScheduleContentService Debug: Schedule ownership verified');
+    
+    console.log('🔍 ScheduleContentService Debug: Verifying content ownership...');
     await this.contentService.findOne(createScheduleContentDto.contentId, userId);
+    console.log('✅ ScheduleContentService Debug: Content ownership verified');
 
+    console.log('🔍 ScheduleContentService Debug: Creating schedule content entity...');
     const scheduleContent = this.scheduleContentRepository.create(createScheduleContentDto);
-    return this.scheduleContentRepository.save(scheduleContent);
+    console.log('🔍 ScheduleContentService Debug: Saving to database...');
+    const savedRecord = await this.scheduleContentRepository.save(scheduleContent);
+    console.log('✅ ScheduleContentService Debug: Schedule content record saved with ID:', savedRecord.id);
+    
+    return savedRecord;
   }
 
   async findAll(
-    userId: number,
+    userId: string,
     filters?: {
       scheduleId?: number;
       contentId?: number;
@@ -135,7 +149,7 @@ export class ScheduleContentService {
     return scheduleContent;
   }
 
-  async findBySchedule(scheduleId: number, userId: number): Promise<ScheduleContent[]> {
+  async findBySchedule(scheduleId: number, userId: string): Promise<ScheduleContent[]> {
     // Verify user owns the schedule
     await this.schedulesService.findOne(scheduleId, userId);
 

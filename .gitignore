@@ -117,4 +117,4 @@ uploads/*
 !uploads/.gitkeep
 
 authentication.json
-
+*.md

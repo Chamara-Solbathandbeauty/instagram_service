@@ -1,14 +1,20 @@
 import { Module } from '@nestjs/common';
-import { InstagramService } from './instagram.service';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { InstagramController } from './instagram.controller';
-import { IgAccountsModule } from '../ig-accounts/ig-accounts.module';
-import { ContentModule } from '../content/content.module';
+import { InstagramGraphService } from './instagram-graph.service';
+import { InstagramPostingService } from './instagram-posting.service';
+import { IgAccount } from '../users/ig-account.entity';
+import { Media } from '../content/media.entity';
+import { Content } from '../content/content.entity';
 
 @Module({
-  imports: [IgAccountsModule, ContentModule],
+  imports: [
+    TypeOrmModule.forFeature([IgAccount, Media, Content]),
+    ConfigModule,
+  ],
   controllers: [InstagramController],
-  providers: [InstagramService],
-  exports: [InstagramService],
+  providers: [InstagramGraphService, InstagramPostingService],
+  exports: [InstagramGraphService, InstagramPostingService],
 })
 export class InstagramModule {}
-
