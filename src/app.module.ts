@@ -26,7 +26,7 @@ import { IgAccountsModule } from './ig-accounts/ig-accounts.module';
       password: process.env.DB_PASSWORD || 'password',
       database: process.env.DB_DATABASE || 'instamanager',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false, // Use migrations in production
+      synchronize: true, // Use synchronize in development
       logging: process.env.NODE_ENV === 'development',
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     }),
