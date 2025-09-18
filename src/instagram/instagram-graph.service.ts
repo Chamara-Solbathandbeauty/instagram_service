@@ -280,7 +280,8 @@ export class InstagramGraphService {
     accessToken: string,
     mediaUrl: string,
     caption: string,
-    mediaType: 'REELS' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+    mediaType: 'REELS' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM',
+    altText?: string
   ): Promise<InstagramMediaUpload> {
     try {
       
@@ -294,6 +295,11 @@ export class InstagramGraphService {
       if (mediaType === 'IMAGE') {
         requestData.image_url = mediaUrl;
         requestData.media_type = 'IMAGE';
+        
+        // Add alt_text for images (new feature as of March 24, 2025)
+        if (altText && altText.trim()) {
+          requestData.alt_text = altText;
+        }
       } else if (mediaType === 'VIDEO' || mediaType === 'REELS') {
         requestData.video_url = mediaUrl;
         requestData.media_type = mediaType;
@@ -349,25 +355,112 @@ export class InstagramGraphService {
   async publishMedia(
     instagramAccountId: string,
     accessToken: string,
-    creationId: string
+    creationId: string,
+    maxRetries: number = 3,
+    retryDelay: number = 10000
   ): Promise<InstagramMediaPublish> {
-    try {
-      
-      // Use direct Instagram Graph API endpoint
-      const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
-      
-      const response = await axios.post(`https://graph.instagram.com/${endpoint}/media_publish`, {
-        creation_id: creationId,
-        access_token: accessToken,
-      });
+    const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // First, check the container status before attempting to publish
+        const status = await this.checkMediaStatus(instagramAccountId, accessToken, creationId);
+        
+        if (status?.status_code) {
+          console.log(`Container status: ${status.status_code}`);
+          
+          switch (status.status_code) {
+            case 'EXPIRED':
+              throw new HttpException(
+                'Media container has expired. Please upload again.',
+                HttpStatus.BAD_REQUEST,
+              );
+            case 'ERROR':
+              throw new HttpException(
+                'Media container failed to process. Please try again.',
+                HttpStatus.BAD_REQUEST,
+              );
+            case 'IN_PROGRESS':
+              if (attempt < maxRetries) {
+                console.log(`Media still processing (attempt ${attempt}/${maxRetries}). Waiting ${retryDelay/1000}s before retry...`);
+                await this.delay(retryDelay);
+                continue;
+              } else {
+                throw new HttpException(
+                  'Media is still processing. Please try again in a few minutes.',
+                  HttpStatus.BAD_REQUEST,
+                );
+              }
+            case 'FINISHED':
+            case 'PUBLISHED':
+              // Container is ready, proceed with publishing
+              break;
+            default:
+              console.log(`Unknown status: ${status.status_code}, attempting to publish anyway...`);
+          }
+        }
 
+        const response = await axios.post(`https://graph.instagram.com/${endpoint}/media_publish`, {
+          creation_id: creationId,
+          access_token: accessToken,
+        });
+
+        return response.data;
+      } catch (error) {
+        const errorData = error.response?.data;
+        
+        // Check if it's the "Media ID is not available" error (video processing)
+        if (errorData?.error?.code === 9007 && errorData?.error?.error_subcode === 2207027) {
+          if (attempt < maxRetries) {
+            console.log(`Video processing not complete (attempt ${attempt}/${maxRetries}). Waiting ${retryDelay/1000}s before retry...`);
+            await this.delay(retryDelay);
+            continue;
+          } else {
+            console.error('Video processing timeout after maximum retries');
+            throw new HttpException(
+              'Video is still processing. Please try again in a few minutes.',
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+        }
+        
+        // For other errors, throw immediately
+        console.error('Error publishing media to Instagram (2024 Direct API):', errorData || error.message);
+        throw new HttpException(
+          errorData?.error?.message || 'Failed to publish media to Instagram',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+  }
+
+  /**
+   * Utility method to add delay
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check media processing status
+   */
+  async checkMediaStatus(
+    instagramAccountId: string,
+    accessToken: string,
+    creationId: string
+  ): Promise<any> {
+    try {
+      const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
+      const response = await axios.get(`https://graph.instagram.com/${creationId}`, {
+        params: {
+          fields: 'id,status_code,status',
+          access_token: accessToken,
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error('Error publishing media to Instagram (2024 Direct API):', error.response?.data || error.message);
-      throw new HttpException(
-        'Failed to publish media to Instagram',
-        HttpStatus.BAD_REQUEST,
-      );
+      console.error('Error checking media status:', error.response?.data || error.message);
+      return null;
     }
   }
 
@@ -381,6 +474,8 @@ export class InstagramGraphService {
     caption: string
   ): Promise<InstagramMediaPublish> {
     try {
+      console.log('Starting video upload to Instagram...');
+      
       // Step 1: Upload the video
       const uploadResult = await this.uploadMedia(
         instagramAccountId,
@@ -390,13 +485,19 @@ export class InstagramGraphService {
         'REELS'
       );
 
-      // Step 2: Publish the video
+      console.log('Video upload successful, creation_id:', uploadResult.creation_id);
+      console.log('Starting video publishing with retry logic...');
+
+      // Step 2: Publish the video with retry logic for processing
       const publishResult = await this.publishMedia(
         instagramAccountId,
         accessToken,
-        uploadResult.creation_id
+        uploadResult.creation_id,
+        5, // Max 5 retries for videos
+        15000 // Wait 15 seconds between retries
       );
 
+      console.log('Video published successfully:', publishResult.id);
       return publishResult;
     } catch (error) {
       console.error('Error posting reel:', error.response?.data || error.message);
@@ -414,7 +515,8 @@ export class InstagramGraphService {
     instagramAccountId: string,
     accessToken: string,
     imageUrl: string,
-    caption: string
+    caption: string,
+    altText?: string
   ): Promise<InstagramMediaPublish> {
     try {
       // Step 1: Upload the image
@@ -423,7 +525,8 @@ export class InstagramGraphService {
         accessToken,
         imageUrl,
         caption,
-        'IMAGE'
+        'IMAGE',
+        altText
       );
 
       // Step 2: Publish the image
