@@ -351,16 +351,20 @@ export class InstagramGraphService {
       
       console.log('Media upload response:', response.data);
       
-      // Validate that we got a creation_id
-      if (!response.data.creation_id) {
-        console.error('No creation_id in response:', response.data);
+      // Validate that we got an id (Instagram API returns 'id', not 'creation_id')
+      if (!response.data.id) {
+        console.error('No id in response:', response.data);
         throw new HttpException(
-          'Instagram API did not return creation_id',
+          'Instagram API did not return id',
           HttpStatus.BAD_REQUEST,
         );
       }
       
-      return response.data;
+      // Return the response with id as creation_id for compatibility
+      return {
+        ...response.data,
+        creation_id: response.data.id
+      };
     } catch (error) {
       console.error('=== INSTAGRAM MEDIA UPLOAD ERROR ===');
       console.error('Error Type:', error.constructor.name);
