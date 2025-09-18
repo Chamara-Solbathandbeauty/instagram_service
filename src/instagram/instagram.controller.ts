@@ -228,9 +228,23 @@ export class InstagramController {
       // Exchange code for access token
       const tokenResponse = await this.instagramGraphService.exchangeCodeForToken(code, state);
       
-      // Extract the first token from the response
-      const shortLivedToken = tokenResponse.data[0];
-      console.log('Short-lived token response:', shortLivedToken);
+      console.log('Full token response:', JSON.stringify(tokenResponse, null, 2));
+      
+      // Handle different response formats
+      let shortLivedToken;
+      if (tokenResponse.data && Array.isArray(tokenResponse.data)) {
+        // Instagram Business Login format with data array
+        shortLivedToken = tokenResponse.data[0];
+        console.log('Using Instagram Business Login format');
+      } else if (tokenResponse.access_token) {
+        // Direct token response format
+        shortLivedToken = tokenResponse;
+        console.log('Using direct token response format');
+      } else {
+        throw new HttpException('Invalid token response format', HttpStatus.BAD_REQUEST);
+      }
+      
+      console.log('Short-lived token:', shortLivedToken);
       
       // Get long-lived token
       const longLivedToken = await this.instagramGraphService.getLongLivedToken(shortLivedToken.access_token);

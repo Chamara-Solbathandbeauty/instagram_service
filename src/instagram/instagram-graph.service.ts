@@ -103,7 +103,7 @@ export class InstagramGraphService {
   /**
    * Exchange authorization code for short-lived access token (Instagram Business Login)
    */
-  async exchangeCodeForToken(code: string, state: string): Promise<InstagramBusinessTokenResponse> {
+  async exchangeCodeForToken(code: string, state: string): Promise<any> {
     try {
       console.log('Attempting Instagram token exchange:');
       console.log('- App ID:', this.appId ? `${this.appId.substring(0, 8)}...` : 'NOT SET');
