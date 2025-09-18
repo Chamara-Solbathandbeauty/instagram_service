@@ -34,6 +34,86 @@ export class InstagramController {
   ) {}
 
   /**
+   * Debug endpoint to check content and account for posting (no auth required)
+   */
+  @Get('debug-post/:contentId/:accountId')
+  async debugPost(
+    @Param('contentId', ParseIntPipe) contentId: number,
+    @Param('accountId', ParseIntPipe) accountId: number,
+  ) {
+    const account = await this.igAccountRepository.findOne({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      return { error: 'Account not found', accountId };
+    }
+
+    const content = await this.contentRepository.findOne({
+      where: { id: contentId, accountId: accountId },
+      relations: ['media', 'account'],
+    });
+
+    if (!content) {
+      return { error: 'Content not found', contentId, accountId };
+    }
+
+    return {
+      account: {
+        id: account.id,
+        name: account.name,
+        isConnected: account.isConnected,
+        hasAccessToken: !!account.accessToken,
+        hasInstagramAccountId: !!account.instagramAccountId,
+        instagramAccountId: account.instagramAccountId,
+        instagramUsername: account.instagramUsername,
+        username: account.username,
+      },
+      content: {
+        id: content.id,
+        caption: content.caption,
+        status: content.status,
+        mediaCount: content.media?.length || 0,
+        hashTags: content.hashTags,
+        media: content.media?.map(m => ({
+          id: m.id,
+          fileName: m.fileName,
+          filePath: m.filePath,
+          mediaType: m.mediaType,
+          mimeType: m.mimeType
+        })) || []
+      }
+    };
+  }
+
+  /**
+   * Debug endpoint to check account status (no auth required)
+   */
+  @Get('debug-account/:accountId')
+  async debugAccount(@Param('accountId', ParseIntPipe) accountId: number) {
+    const account = await this.igAccountRepository.findOne({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      return { error: 'Account not found', accountId };
+    }
+
+    return {
+      accountId: account.id,
+      name: account.name,
+      isConnected: account.isConnected,
+      hasAccessToken: !!account.accessToken,
+      hasInstagramAccountId: !!account.instagramAccountId,
+      instagramAccountId: account.instagramAccountId,
+      instagramUsername: account.instagramUsername,
+      username: account.username,
+      tokenExpiresAt: account.tokenExpiresAt,
+      userId: account.userId
+    };
+  }
+
+  /**
    * Generate Instagram OAuth authorization URL
    */
   @Get('auth-url/:accountId')
@@ -280,6 +360,10 @@ export class InstagramController {
     @GetUser() user: User,
     @Body() postData: { contentId: number; accountId: number },
   ) {
+    console.log('=== INSTAGRAM POST REQUEST ===');
+    console.log('User ID:', user.id);
+    console.log('Post Data:', postData);
+    
     const { contentId, accountId } = postData;
 
     // Verify the account belongs to the user
@@ -288,14 +372,33 @@ export class InstagramController {
     });
 
     if (!account) {
+      console.log('Account not found for user:', user.id, 'account:', accountId);
       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
     }
 
+    console.log('Account found:', {
+      id: account.id,
+      name: account.name,
+      isConnected: account.isConnected,
+      hasAccessToken: !!account.accessToken,
+      hasInstagramAccountId: !!account.instagramAccountId,
+      instagramAccountId: account.instagramAccountId,
+      instagramUsername: account.instagramUsername,
+      username: account.username
+    });
+
     if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
+      console.log('Connection check failed:', {
+        isConnected: account.isConnected,
+        hasAccessToken: !!account.accessToken,
+        hasInstagramAccountId: !!account.instagramAccountId
+      });
       throw new HttpException('Instagram account not connected', HttpStatus.BAD_REQUEST);
     }
 
     try {
+      console.log('Fetching content:', { contentId, accountId });
+      
       // Get the content with its media
       const content = await this.contentRepository.findOne({
         where: { id: contentId, accountId: accountId },
@@ -303,19 +406,38 @@ export class InstagramController {
       });
 
       if (!content) {
+        console.log('Content not found:', { contentId, accountId });
         throw new HttpException('Content not found', HttpStatus.NOT_FOUND);
       }
 
+      console.log('Content found:', {
+        id: content.id,
+        caption: content.caption,
+        status: content.status,
+        mediaCount: content.media?.length || 0,
+        hashTags: content.hashTags
+      });
+
       if (content.status === ContentStatus.PUBLISHED) {
+        console.log('Content already published:', content.id);
         throw new HttpException('Content has already been published', HttpStatus.BAD_REQUEST);
       }
 
       if (!content.media || content.media.length === 0) {
+        console.log('Content has no media files:', content.id);
         throw new HttpException('Content has no media files to post', HttpStatus.BAD_REQUEST);
       }
 
       // Use the first media file for posting
       const primaryMedia = content.media[0];
+      
+      console.log('Primary media:', {
+        id: primaryMedia.id,
+        fileName: primaryMedia.fileName,
+        filePath: primaryMedia.filePath,
+        mediaType: primaryMedia.mediaType,
+        mimeType: primaryMedia.mimeType
+      });
       
       // Prepare caption with hashtags
       let caption = content.caption || '';
@@ -324,6 +446,9 @@ export class InstagramController {
         caption = caption ? `${caption}\n\n${hashtagsText}` : hashtagsText;
       }
 
+      console.log('Prepared caption:', caption);
+      console.log('Calling Instagram posting service...');
+
       // Post to Instagram using the posting service
       const result = await this.instagramPostingService.postToInstagram({
         accountId: accountId,
@@ -331,6 +456,8 @@ export class InstagramController {
         caption: caption,
         hashtags: content.hashTags,
       });
+
+      console.log('Posting service result:', result);
 
       if (result.success) {
         // Update content status to published
@@ -349,11 +476,23 @@ export class InstagramController {
         throw new HttpException(result.message, HttpStatus.BAD_REQUEST);
       }
     } catch (error) {
-      console.error('Instagram post error:', error);
+      console.error('=== INSTAGRAM POST ERROR ===');
+      console.error('Error Type:', error.constructor.name);
+      console.error('Error Message:', error.message);
+      console.error('Error Stack:', error.stack);
+      
+      if (error.response) {
+        console.error('HTTP Response Status:', error.response.status);
+        console.error('HTTP Response Data:', error.response.data);
+        console.error('HTTP Response Headers:', error.response.headers);
+      }
       
       if (error instanceof HttpException) {
+        console.error('Re-throwing HttpException:', error.getResponse());
         throw error;
       }
+      
+      console.error('================================');
       
       throw new HttpException(
         error.message || 'Failed to post content to Instagram',
@@ -371,16 +510,38 @@ export class InstagramController {
     @GetUser() user: User,
     @Param('accountId', ParseIntPipe) accountId: number,
   ) {
+    console.log('=== TEST CONNECTION REQUEST ===');
+    console.log('User ID:', user.id);
+    console.log('Account ID:', accountId);
+    
     // Verify the account belongs to the user
     const account = await this.igAccountRepository.findOne({
       where: { id: accountId, userId: user.id },
     });
 
     if (!account) {
+      console.log('Account not found for user:', user.id, 'account:', accountId);
       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
     }
 
+    console.log('Account found:', {
+      id: account.id,
+      name: account.name,
+      isConnected: account.isConnected,
+      hasAccessToken: !!account.accessToken,
+      hasInstagramAccountId: !!account.instagramAccountId,
+      instagramAccountId: account.instagramAccountId,
+      instagramUsername: account.instagramUsername,
+      username: account.username,
+      tokenExpiresAt: account.tokenExpiresAt
+    });
+
     if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
+      console.log('Connection check failed:', {
+        isConnected: account.isConnected,
+        hasAccessToken: !!account.accessToken,
+        hasInstagramAccountId: !!account.instagramAccountId
+      });
       throw new HttpException('Instagram account not connected', HttpStatus.BAD_REQUEST);
     }
 
