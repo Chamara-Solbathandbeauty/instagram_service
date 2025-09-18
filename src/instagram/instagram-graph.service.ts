@@ -12,6 +12,15 @@ export interface InstagramTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
+  user_id?: string;
+}
+
+export interface InstagramBusinessTokenResponse {
+  data: Array<{
+    access_token: string;
+    user_id: string;
+    permissions: string;
+  }>;
 }
 
 export interface InstagramLongLivedTokenResponse {
@@ -94,7 +103,7 @@ export class InstagramGraphService {
   /**
    * Exchange authorization code for short-lived access token (Instagram Business Login)
    */
-  async exchangeCodeForToken(code: string, state: string): Promise<InstagramTokenResponse> {
+  async exchangeCodeForToken(code: string, state: string): Promise<InstagramBusinessTokenResponse> {
     try {
       console.log('Attempting Instagram token exchange:');
       console.log('- App ID:', this.appId ? `${this.appId.substring(0, 8)}...` : 'NOT SET');

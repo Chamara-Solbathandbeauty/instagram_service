@@ -228,8 +228,12 @@ export class InstagramController {
       // Exchange code for access token
       const tokenResponse = await this.instagramGraphService.exchangeCodeForToken(code, state);
       
+      // Extract the first token from the response
+      const shortLivedToken = tokenResponse.data[0];
+      console.log('Short-lived token response:', shortLivedToken);
+      
       // Get long-lived token
-      const longLivedToken = await this.instagramGraphService.getLongLivedToken(tokenResponse.access_token);
+      const longLivedToken = await this.instagramGraphService.getLongLivedToken(shortLivedToken.access_token);
 
       console.log('Long-lived token:', longLivedToken);
       
@@ -280,8 +284,8 @@ export class InstagramController {
         console.log('No Instagram account ID found, checking token response...');
         
         // Check if we have the Instagram account ID from the token response
-        if (tokenResponse.user_id) {
-          instagramAccountId = tokenResponse.user_id;
+        if (shortLivedToken.user_id) {
+          instagramAccountId = shortLivedToken.user_id;
           console.log('Using Instagram account ID from token response:', instagramAccountId);
         } else {
           console.log('Token response:', tokenResponse);
