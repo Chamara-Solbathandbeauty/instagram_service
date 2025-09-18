@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Put,
   Param,
   Delete,
   UseGuards,
@@ -81,6 +82,15 @@ export class ContentController {
 
   @Patch(':id')
   update(
+    @Param('id') id: string,
+    @GetUser() user: any,
+    @Body() updateContentDto: UpdateContentDto,
+  ) {
+    return this.contentService.update(+id, user.id, updateContentDto);
+  }
+
+  @Put(':id')
+  updatePut(
     @Param('id') id: string,
     @GetUser() user: any,
     @Body() updateContentDto: UpdateContentDto,
