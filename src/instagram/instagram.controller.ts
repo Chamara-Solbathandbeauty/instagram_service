@@ -156,18 +156,29 @@ export class InstagramController {
       const tokenExpiresAt = new Date();
       tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + longLivedToken.expires_in);
 
+      console.log('=== UPDATING ACCOUNT WITH INSTAGRAM INFO ===');
+      console.log('Account ID:', account.id);
+      console.log('Instagram Info:', instagramInfo);
+      console.log('Username to save:', instagramInfo.username);
+      console.log('Instagram Account ID:', instagramAccountId);
+      console.log('============================================');
+
       await this.igAccountRepository.update(account.id, {
+        instagramAccountId: instagramAccountId,
         instagramUserId: instagramAccountId,
         facebookPageId: facebookPageId,
         accessToken: longLivedToken.access_token,
         tokenExpiresAt: tokenExpiresAt,
         isConnected: true,
         instagramUsername: instagramInfo.username,
+        username: instagramInfo.username,
         profilePictureUrl: instagramInfo.profile_picture_url,
         followersCount: instagramInfo.followers_count,
         followingCount: instagramInfo.follows_count,
         mediaCount: instagramInfo.media_count,
       });
+
+      console.log('Account updated successfully!');
 
       // Redirect to frontend with success message
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -374,11 +385,21 @@ export class InstagramController {
     }
 
     try {
+      console.log('=== TESTING INSTAGRAM CONNECTION ===');
+      console.log('Account ID:', account.id);
+      console.log('Instagram Account ID:', account.instagramAccountId);
+      console.log('Access Token:', account.accessToken ? `${account.accessToken.substring(0, 20)}...` : 'NOT SET');
+      console.log('Token Expires At:', account.tokenExpiresAt);
+      console.log('Is Connected:', account.isConnected);
+      
       // Test the connection by getting account info
       const instagramInfo = await this.instagramGraphService.getInstagramAccountInfo(
         account.instagramAccountId,
         account.accessToken,
       );
+
+      console.log('Test connection successful:', instagramInfo);
+      console.log('=====================================');
 
       return {
         success: true,
@@ -386,7 +407,11 @@ export class InstagramController {
         accountInfo: instagramInfo,
       };
     } catch (error) {
-      console.error('Instagram test connection error:', error);
+      console.error('=== INSTAGRAM TEST CONNECTION ERROR ===');
+      console.error('Error:', error.message);
+      console.error('Response Status:', error.response?.status);
+      console.error('Response Data:', error.response?.data);
+      console.error('========================================');
       throw new HttpException(
         'Instagram connection test failed. Please reconnect your account.',
         HttpStatus.BAD_REQUEST,

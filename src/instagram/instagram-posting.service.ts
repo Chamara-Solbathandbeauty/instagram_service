@@ -42,7 +42,7 @@ export class InstagramPostingService {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
 
-      if (!account.isConnected || !account.accessToken || !account.instagramUserId) {
+      if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
         throw new HttpException(
           'Instagram account not connected. Please connect your Instagram account first.',
           HttpStatus.BAD_REQUEST,
@@ -75,7 +75,7 @@ export class InstagramPostingService {
 
       console.log('Posting to Instagram:');
       console.log('- Account ID:', account.id);
-      console.log('- Instagram Account ID:', account.instagramUserId);
+      console.log('- Instagram Account ID:', account.instagramAccountId);
       console.log('- Account Type:', account.type);
       console.log('- Facebook Page ID:', account.instagramUsername);
       console.log('- Access Token:', account.accessToken ? `${account.accessToken.substring(0, 20)}...` : 'NOT SET');
@@ -86,7 +86,7 @@ export class InstagramPostingService {
       try {
         console.log('Verifying Instagram account access...');
         const accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
-          account.instagramUserId!,
+          account.instagramAccountId!,
           account.accessToken!
         );
         console.log('Account verification successful:', accountInfo.id, accountInfo.username);
@@ -139,7 +139,7 @@ export class InstagramPostingService {
 
       // Check if this is a Business or Creator account
       // Personal accounts cannot post via Instagram Graph API
-      if (!account.instagramUserId || account.instagramUserId === 'instagram_user') {
+      if (!account.instagramAccountId || account.instagramAccountId === 'instagram_user') {
         throw new HttpException(
           'Instagram posting is only available for Business and Creator accounts. Please convert your Instagram account to Business or Creator type and reconnect.',
           HttpStatus.BAD_REQUEST,
@@ -150,9 +150,9 @@ export class InstagramPostingService {
       let result;
       let postingEndpoint: string;
       
-      if (account.instagramUserId) {
+      if (account.instagramAccountId) {
         // Direct Instagram account access (2024 API supports this for posting!)
-        postingEndpoint = account.instagramUserId;
+        postingEndpoint = account.instagramAccountId;
         
         if (account.instagramUsername) {
           console.log('Using direct Instagram Account ID (legacy Facebook Page setup):', postingEndpoint);
@@ -241,7 +241,7 @@ export class InstagramPostingService {
         throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
       }
 
-      if (!account.isConnected || !account.accessToken || !account.instagramUserId) {
+      if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
         throw new HttpException(
           'Instagram account not connected. Please connect your Instagram account first.',
           HttpStatus.BAD_REQUEST,
@@ -304,17 +304,17 @@ export class InstagramPostingService {
         };
       }
 
-      const isConnected = account.isConnected && !!account.accessToken && !!account.instagramUserId;
+      const isConnected = account.isConnected && !!account.accessToken && !!account.instagramAccountId;
       let tokenValid = false;
       let accountInfo: any = null;
 
-        if (isConnected && account.accessToken && account.instagramUserId) {
+        if (isConnected && account.accessToken && account.instagramAccountId) {
         tokenValid = await this.instagramGraphService.validateAccessToken(account.accessToken);
         
         if (tokenValid) {
           try {
             accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
-              account.instagramUserId,
+              account.instagramAccountId,
               account.accessToken,
             );
           } catch (error) {
