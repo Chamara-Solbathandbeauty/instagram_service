@@ -34,6 +34,61 @@ export class InstagramController {
   ) {}
 
   /**
+   * Fix missing Instagram account ID for existing accounts
+   */
+  @Post('fix-account/:accountId')
+  @UseGuards(JwtAuthGuard)
+  async fixAccount(
+    @GetUser() user: User,
+    @Param('accountId', ParseIntPipe) accountId: number,
+  ) {
+    const account = await this.igAccountRepository.findOne({
+      where: { id: accountId, userId: user.id },
+    });
+
+    if (!account) {
+      throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (!account.isConnected || !account.accessToken) {
+      throw new HttpException('Account not connected or no access token', HttpStatus.BAD_REQUEST);
+    }
+
+    try {
+      // Try to get Instagram account info using the access token
+      const instagramInfo = await this.instagramGraphService.getInstagramAccountInfo(
+        'me',
+        account.accessToken,
+      );
+
+      console.log('Retrieved Instagram info:', instagramInfo);
+
+      // Update the account with the Instagram account ID
+      await this.igAccountRepository.update(account.id, {
+        instagramAccountId: instagramInfo.id,
+        instagramUsername: instagramInfo.username,
+        username: instagramInfo.username,
+        followersCount: instagramInfo.followers_count,
+        followingCount: instagramInfo.follows_count,
+        mediaCount: instagramInfo.media_count,
+      });
+
+      return {
+        success: true,
+        message: 'Account fixed successfully',
+        instagramAccountId: instagramInfo.id,
+        username: instagramInfo.username,
+      };
+    } catch (error) {
+      console.error('Error fixing account:', error);
+      throw new HttpException(
+        'Failed to fix account. Please reconnect your Instagram account.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * Debug endpoint to check content and account for posting (no auth required)
    */
   @Get('debug-post/:contentId/:accountId')
@@ -194,8 +249,12 @@ export class InstagramController {
         );
         instagramAccountId = instagramInfo.id;
         console.log('Direct Instagram access successful - posting supported!');
+        console.log('Instagram Account ID:', instagramAccountId);
+        console.log('Instagram Info:', instagramInfo);
       } catch (directError) {
-        console.log('Direct Instagram access failed, trying Facebook Page fallback:', directError.message);
+        console.log('Direct Instagram access failed:', directError.message);
+        console.log('Error details:', directError.response?.data);
+        console.log('Trying Facebook Page fallback...');
         
         // Fallback to traditional Facebook Page method (for older setups)
         try {
@@ -218,10 +277,19 @@ export class InstagramController {
       }
 
       if (!instagramAccountId) {
-        throw new HttpException(
-          'No Instagram account found. Please ensure your Instagram account is set as Professional (Business or Creator) account type.',
-          HttpStatus.BAD_REQUEST,
-        );
+        console.log('No Instagram account ID found, checking token response...');
+        
+        // Check if we have the Instagram account ID from the token response
+        if (tokenResponse.user_id) {
+          instagramAccountId = tokenResponse.user_id;
+          console.log('Using Instagram account ID from token response:', instagramAccountId);
+        } else {
+          console.log('Token response:', tokenResponse);
+          throw new HttpException(
+            'No Instagram account found. Please ensure your Instagram account is set as Professional (Business or Creator) account type.',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
       }
 
       // Get Instagram account information if not already retrieved
