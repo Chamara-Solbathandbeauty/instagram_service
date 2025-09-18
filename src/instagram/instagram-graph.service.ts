@@ -14,6 +14,12 @@ export interface InstagramTokenResponse {
   expires_in: number;
 }
 
+export interface InstagramLongLivedTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
 export interface InstagramAccountInfo {
   id: string;
   username: string;
@@ -34,15 +40,17 @@ export interface InstagramMediaPublish {
 
 @Injectable()
 export class InstagramGraphService {
-  private readonly baseUrl = 'https://graph.facebook.com/v23.0';
+  private readonly baseUrl = 'https://graph.instagram.com';
+  private readonly authUrl = 'https://www.instagram.com/oauth/authorize';
+  private readonly tokenUrl = 'https://api.instagram.com/oauth/access_token';
   private readonly appId: string;
   private readonly appSecret: string;
   private readonly redirectUri: string;
 
   constructor(private configService: ConfigService) {
-    // Use Instagram Basic Display App credentials (2024 Direct API)
-    this.appId = this.configService.get<string>('INSTAGRAM_APP_ID') || this.configService.get<string>('FACEBOOK_APP_ID') || '';
-    this.appSecret = this.configService.get<string>('INSTAGRAM_APP_SECRET') || this.configService.get<string>('FACEBOOK_APP_SECRET') || '';
+    // Use Instagram Business Login credentials
+    this.appId = this.configService.get<string>('INSTAGRAM_APP_ID') || '';
+    this.appSecret = this.configService.get<string>('INSTAGRAM_APP_SECRET') || '';
     this.redirectUri = this.configService.get<string>('INSTAGRAM_REDIRECT_URI') || 'http://localhost:3001/auth/instagram/callback';
     
     // Debug logging to help identify configuration issues
@@ -58,23 +66,23 @@ export class InstagramGraphService {
   }
 
   /**
-   * Generate Instagram OAuth authorization URL (NEW 2024 Direct Instagram API)
+   * Generate Instagram Business Login authorization URL
    */
   generateAuthUrl(userId: string, accountId: number): InstagramAuthUrl {
     const state = Buffer.from(JSON.stringify({ userId, accountId, timestamp: Date.now() })).toString('base64');
     
-    // Instagram Basic Display API - Use Facebook OAuth with Instagram scopes
+    // Instagram Business Login - Use new Instagram scopes
     const params = new URLSearchParams({
       client_id: this.appId,
       redirect_uri: this.redirectUri,
-      scope: 'instagram_basic,pages_show_list',
+      scope: 'instagram_business_basic,instagram_business_content_publish,instagram_business_manage_messages,instagram_business_manage_comments',
       response_type: 'code',
       state: state,
     });
 
-    // Use Facebook OAuth URL for Instagram Basic Display API
-    const authUrl = `https://www.facebook.com/v23.0/dialog/oauth?${params.toString()}`;
-    console.log('Generated Instagram Basic Display Auth URL:', authUrl);
+    // Use Instagram Business Login URL
+    const authUrl = `${this.authUrl}?${params.toString()}`;
+    console.log('Generated Instagram Business Login Auth URL:', authUrl);
     console.log('Using redirect URI:', this.redirectUri);
 
     return {
@@ -84,7 +92,7 @@ export class InstagramGraphService {
   }
 
   /**
-   * Exchange authorization code for access token (NEW 2024 Direct Instagram API)
+   * Exchange authorization code for short-lived access token (Instagram Business Login)
    */
   async exchangeCodeForToken(code: string, state: string): Promise<InstagramTokenResponse> {
     try {
@@ -153,9 +161,9 @@ export class InstagramGraphService {
   }
 
   /**
-   * Get long-lived access token (NEW 2024 Direct Instagram API)
+   * Exchange short-lived token for long-lived token (Instagram Business Login)
    */
-  async getLongLivedToken(shortLivedToken: string): Promise<InstagramTokenResponse> {
+  async getLongLivedToken(shortLivedToken: string): Promise<InstagramLongLivedTokenResponse> {
     try {
       console.log('Getting long-lived Instagram token (2024 API)');
       
@@ -174,6 +182,31 @@ export class InstagramGraphService {
       console.error('Error getting long-lived Instagram token:', error.response?.data || error.message);
       throw new HttpException(
         'Failed to get long-lived Instagram access token',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Refresh long-lived access token (Instagram Business Login)
+   */
+  async refreshLongLivedToken(longLivedToken: string): Promise<InstagramLongLivedTokenResponse> {
+    try {
+      console.log('Refreshing long-lived Instagram token');
+      
+      const response = await axios.get('https://graph.instagram.com/refresh_access_token', {
+        params: {
+          grant_type: 'ig_refresh_token',
+          access_token: longLivedToken,
+        },
+      });
+
+      console.log('Instagram token refresh successful');
+      return response.data;
+    } catch (error) {
+      console.error('Error refreshing Instagram token:', error.response?.data || error.message);
+      throw new HttpException(
+        'Failed to refresh Instagram access token',
         HttpStatus.BAD_REQUEST,
       );
     }
