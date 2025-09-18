@@ -69,7 +69,7 @@ export class InstagramPostingService {
 
       // Construct the full media URL
       const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-      const mediaUrl = `${baseUrl}/uploads/${media.filePath}`;
+      const mediaUrl = `${baseUrl}/uploads/media/${media.filePath}`;
       // public accessable media url for testing
       // const mediaUrl = 'https://photographylife.com/wp-content/uploads/2014/10/Nikon-D750-Sample-Image-36.jpg';  
 
