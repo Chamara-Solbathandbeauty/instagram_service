@@ -26,7 +26,7 @@ export class InstagramService {
       throw new BadRequestException('Instagram API not configured');
     }
 
-    const scopes = 'instagram_basic,instagram_content_publish';
+    const scopes = 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,';
     const state = `${accountId}_${userId}_${Date.now()}`;
     
     const authUrl = `https://api.instagram.com/oauth/authorize?client_id=${this.clientId}&redirect_uri=${encodeURIComponent(this.redirectUri)}&scope=${scopes}&response_type=code&state=${state}`;
