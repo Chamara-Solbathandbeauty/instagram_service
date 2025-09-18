@@ -69,9 +69,9 @@ export class InstagramPostingService {
 
       // Construct the full media URL
       const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
-      // const mediaUrl = `${baseUrl}/uploads/${media.filePath}`;
+      const mediaUrl = `${baseUrl}/uploads/${media.filePath}`;
       // public accessable media url for testing
-      const mediaUrl = 'https://photographylife.com/wp-content/uploads/2014/10/Nikon-D750-Sample-Image-36.jpg';
+      // const mediaUrl = 'https://photographylife.com/wp-content/uploads/2014/10/Nikon-D750-Sample-Image-36.jpg';  
 
       console.log('Posting to Instagram:');
       console.log('- Account ID:', account.id);
@@ -214,9 +214,21 @@ export class InstagramPostingService {
         message: 'Media posted to Instagram successfully',
       };
     } catch (error) {
-      console.error('Error posting to Instagram:', error);
+      console.error('=== INSTAGRAM POSTING ERROR ===');
+      console.error('Error Type:', error.constructor.name);
+      console.error('Error Message:', error.message);
+      
+      if (error.response) {
+        console.error('HTTP Response Status:', error.response.status);
+        console.error('HTTP Response Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('HTTP Response Headers:', error.response.headers);
+      }
+      
+      console.error('Error Stack:', error.stack);
+      console.error('================================');
+      
       throw new HttpException(
-        error.message || 'Failed to post to Instagram',
+        error.response?.data?.error?.message || error.message || 'Failed to post to Instagram',
         HttpStatus.BAD_REQUEST,
       );
     }

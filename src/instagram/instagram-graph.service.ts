@@ -325,20 +325,58 @@ export class InstagramGraphService {
       // Use direct Instagram Graph API endpoint
       const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
       
-      const response = await axios.post(`https://graph.instagram.com/${endpoint}/media`, {
-        media_type: mediaType,
-        video_url: mediaType === 'REELS' || mediaType === 'VIDEO' ? mediaUrl : undefined,
-        image_url: mediaType === 'IMAGE' ? mediaUrl : undefined,
-        caption: caption,
+      const requestData: any = {
         access_token: accessToken,
+      };
+
+      if (mediaType === 'IMAGE') {
+        requestData.image_url = mediaUrl;
+        requestData.media_type = 'IMAGE';
+      } else if (mediaType === 'VIDEO' || mediaType === 'REELS') {
+        requestData.video_url = mediaUrl;
+        requestData.media_type = mediaType;
+      }
+
+      // Only add caption if it's not empty
+      if (caption && caption.trim()) {
+        requestData.caption = caption;
+      }
+      
+      console.log('Upload request data:', {
+        ...requestData,
+        access_token: requestData.access_token ? `${requestData.access_token.substring(0, 20)}...` : 'NOT SET'
       });
       
-      console.log('Media upload successful (2024 Direct API):', response.data);
+      const response = await axios.post(`https://graph.instagram.com/${endpoint}/media`, requestData);
+      
+      console.log('Media upload response:', response.data);
+      
+      // Validate that we got a creation_id
+      if (!response.data.creation_id) {
+        console.error('No creation_id in response:', response.data);
+        throw new HttpException(
+          'Instagram API did not return creation_id',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      
       return response.data;
     } catch (error) {
-      console.error('Error uploading media to Instagram (2024 Direct API):', error.response?.data || error.message);
+      console.error('=== INSTAGRAM MEDIA UPLOAD ERROR ===');
+      console.error('Error Type:', error.constructor.name);
+      console.error('Error Message:', error.message);
+      
+      if (error.response) {
+        console.error('HTTP Response Status:', error.response.status);
+        console.error('HTTP Response Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('HTTP Response Headers:', error.response.headers);
+      }
+      
+      console.error('Error Stack:', error.stack);
+      console.error('=====================================');
+      
       throw new HttpException(
-        'Failed to upload media to Instagram',
+        error.response?.data?.error?.message || error.message || 'Failed to upload media to Instagram',
         HttpStatus.BAD_REQUEST,
       );
     }
