@@ -62,16 +62,6 @@ export class InstagramGraphService {
     this.appSecret = this.configService.get<string>('INSTAGRAM_APP_SECRET') || '';
     this.redirectUri = this.configService.get<string>('INSTAGRAM_REDIRECT_URI') || 'http://localhost:3001/auth/instagram/callback';
     
-    // Debug logging to help identify configuration issues
-    console.log('Instagram Graph Service Configuration (2024 Direct API):');
-    console.log('Instagram App ID:', this.appId ? `${this.appId.substring(0, 8)}...` : 'NOT SET');
-    console.log('Instagram App Secret:', this.appSecret ? 'SET' : 'NOT SET');
-    console.log('Redirect URI:', this.redirectUri || 'NOT SET');
-    console.log('');
-    console.log('📋 IMPORTANT: For 2024 Direct Instagram API, you need:');
-    console.log('- Instagram Basic Display App credentials (not Facebook App)');
-    console.log('- Set INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET in .env');
-    console.log('- App must have Instagram Basic Display product enabled');
   }
 
   /**
@@ -91,8 +81,6 @@ export class InstagramGraphService {
 
     // Use Instagram Business Login URL
     const authUrl = `${this.authUrl}?${params.toString()}`;
-    console.log('Generated Instagram Business Login Auth URL:', authUrl);
-    console.log('Using redirect URI:', this.redirectUri);
 
     return {
       authUrl: authUrl,
@@ -105,11 +93,6 @@ export class InstagramGraphService {
    */
   async exchangeCodeForToken(code: string, state: string): Promise<any> {
     try {
-      console.log('Attempting Instagram token exchange:');
-      console.log('- App ID:', this.appId ? `${this.appId.substring(0, 8)}...` : 'NOT SET');
-      console.log('- App Secret:', this.appSecret ? 'SET' : 'NOT SET');
-      console.log('- Redirect URI (auth):', this.redirectUri);
-      console.log('- Code:', code ? `${code.substring(0, 20)}...` : 'NOT SET');
       
       // Ensure redirect_uri is NOT URL-encoded for token exchange (Instagram expects raw URI)
       const tokenParams = {
@@ -119,15 +102,7 @@ export class InstagramGraphService {
         redirect_uri: this.redirectUri, // Raw URI, not URL-encoded
         code: code,
       };
-      console.log('- Token exchange parameters:');
-      console.log('  - client_id:', tokenParams.client_id ? `${tokenParams.client_id.substring(0, 8)}...` : 'NOT SET');
-      console.log('  - redirect_uri (raw):', tokenParams.redirect_uri);
-      console.log('  - grant_type:', tokenParams.grant_type);
       
-      // Double-check what URLSearchParams will encode
-      const encodedParams = new URLSearchParams(tokenParams);
-      console.log('- Encoded parameters being sent:');
-      console.log('  - redirect_uri (encoded):', encodedParams.get('redirect_uri'));
 
       // Try alternative approach: send as form data without manual URL encoding
       const formData = new FormData();
@@ -137,14 +112,11 @@ export class InstagramGraphService {
       formData.append('redirect_uri', tokenParams.redirect_uri);
       formData.append('code', tokenParams.code);
       
-      console.log('- Trying FormData approach for token exchange...');
       
       try {
         const response = await axios.post('https://api.instagram.com/oauth/access_token', formData);
-        console.log('FormData approach successful!');
         return response.data;
       } catch (formError) {
-        console.log('FormData approach failed, trying URLSearchParams...');
         
         // Fallback to URLSearchParams approach
         const response = await axios.post('https://api.instagram.com/oauth/access_token', 
@@ -174,7 +146,6 @@ export class InstagramGraphService {
    */
   async getLongLivedToken(shortLivedToken: string): Promise<InstagramLongLivedTokenResponse> {
     try {
-      console.log('Getting long-lived Instagram token (2024 API)');
       
       // Use direct Instagram long-lived token exchange
       const response = await axios.get('https://graph.instagram.com/access_token', {
@@ -185,7 +156,6 @@ export class InstagramGraphService {
         },
       });
 
-      console.log('Long-lived Instagram token exchange successful');
       return response.data;
     } catch (error) {
       console.error('Error getting long-lived Instagram token:', error.response?.data || error.message);
@@ -201,7 +171,6 @@ export class InstagramGraphService {
    */
   async refreshLongLivedToken(longLivedToken: string): Promise<InstagramLongLivedTokenResponse> {
     try {
-      console.log('Refreshing long-lived Instagram token');
       
       const response = await axios.get('https://graph.instagram.com/refresh_access_token', {
         params: {
@@ -210,7 +179,6 @@ export class InstagramGraphService {
         },
       });
 
-      console.log('Instagram token refresh successful');
       return response.data;
     } catch (error) {
       console.error('Error refreshing Instagram token:', error.response?.data || error.message);
@@ -248,7 +216,6 @@ export class InstagramGraphService {
    */
   async getInstagramAccountInfo(instagramAccountId: string, accessToken: string): Promise<InstagramAccountInfo> {
     try {
-      console.log('Getting Instagram account info (2024 Direct API)');
       
       // Use direct Instagram Graph API endpoint (not Facebook)
       const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
@@ -259,7 +226,6 @@ export class InstagramGraphService {
         },
       });
 
-      console.log('Instagram account info retrieved successfully:', response.data);
       
       // Return the actual data with defaults for missing fields
       return {
@@ -285,7 +251,6 @@ export class InstagramGraphService {
    */
   async checkPostingPermissions(instagramAccountId: string, accessToken: string): Promise<boolean> {
     try {
-      console.log('Checking Instagram posting permissions (2024 Direct API)');
       
       // Use direct Instagram Graph API to check permissions
       const response = await axios.get(`https://graph.instagram.com/${instagramAccountId}`, {
@@ -295,13 +260,11 @@ export class InstagramGraphService {
         },
       });
       
-      console.log('Account permissions check (2024 API):', response.data);
       
       // Check if it's a Business or Creator account (required for posting)
       const accountType = response.data.account_type;
       const hasPostingPermissions = accountType === 'BUSINESS' || accountType === 'CREATOR';
       
-      console.log(`Account type: ${accountType}, Has posting permissions: ${hasPostingPermissions}`);
       return hasPostingPermissions;
     } catch (error) {
       console.error('Error checking Instagram posting permissions (2024 API):', error.response?.data || error.message);
@@ -320,7 +283,6 @@ export class InstagramGraphService {
     mediaType: 'REELS' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
   ): Promise<InstagramMediaUpload> {
     try {
-      console.log('Uploading media to Instagram (2024 Direct API)');
       
       // Use direct Instagram Graph API endpoint
       const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
@@ -342,14 +304,9 @@ export class InstagramGraphService {
         requestData.caption = caption;
       }
       
-      console.log('Upload request data:', {
-        ...requestData,
-        access_token: requestData.access_token ? `${requestData.access_token.substring(0, 20)}...` : 'NOT SET'
-      });
       
       const response = await axios.post(`https://graph.instagram.com/${endpoint}/media`, requestData);
       
-      console.log('Media upload response:', response.data);
       
       // Validate that we got an id (Instagram API returns 'id', not 'creation_id')
       if (!response.data.id) {
@@ -395,7 +352,6 @@ export class InstagramGraphService {
     creationId: string
   ): Promise<InstagramMediaPublish> {
     try {
-      console.log('Publishing media to Instagram (2024 Direct API)');
       
       // Use direct Instagram Graph API endpoint
       const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
@@ -405,7 +361,6 @@ export class InstagramGraphService {
         access_token: accessToken,
       });
 
-      console.log('Media publish successful (2024 Direct API):', response.data);
       return response.data;
     } catch (error) {
       console.error('Error publishing media to Instagram (2024 Direct API):', error.response?.data || error.message);

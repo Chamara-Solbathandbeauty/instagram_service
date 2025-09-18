@@ -61,7 +61,6 @@ export class InstagramController {
         account.accessToken,
       );
 
-      console.log('Retrieved Instagram info:', instagramInfo);
 
       // Update the account with the Instagram account ID
       await this.igAccountRepository.update(account.id, {
@@ -228,81 +227,61 @@ export class InstagramController {
       // Exchange code for access token
       const tokenResponse = await this.instagramGraphService.exchangeCodeForToken(code, state);
       
-      console.log('Full token response:', JSON.stringify(tokenResponse, null, 2));
       
       // Handle different response formats
       let shortLivedToken;
       if (tokenResponse.data && Array.isArray(tokenResponse.data)) {
         // Instagram Business Login format with data array
         shortLivedToken = tokenResponse.data[0];
-        console.log('Using Instagram Business Login format');
       } else if (tokenResponse.access_token) {
         // Direct token response format
         shortLivedToken = tokenResponse;
-        console.log('Using direct token response format');
       } else {
         throw new HttpException('Invalid token response format', HttpStatus.BAD_REQUEST);
       }
       
-      console.log('Short-lived token:', shortLivedToken);
       
       // Get long-lived token
       const longLivedToken = await this.instagramGraphService.getLongLivedToken(shortLivedToken.access_token);
 
-      console.log('Long-lived token:', longLivedToken);
       
       // Use the NEW 2024 Instagram API - Direct access without Facebook Pages!
       let instagramAccountId: string | null = null;
       let facebookPageId: string | null = null;
       let instagramInfo: any = null;
 
-      console.log('Using NEW 2024 Instagram API - Direct access without Facebook Pages');
       
       // Try direct Instagram access first (2024 API supports posting directly)
       try {
-        console.log('Attempting direct Instagram account access');
         instagramInfo = await this.instagramGraphService.getInstagramAccountInfo(
           'me',
           longLivedToken.access_token,
         );
         instagramAccountId = instagramInfo.id;
-        console.log('Direct Instagram access successful - posting supported!');
-        console.log('Instagram Account ID:', instagramAccountId);
-        console.log('Instagram Info:', instagramInfo);
       } catch (directError) {
-        console.log('Direct Instagram access failed:', directError.message);
-        console.log('Error details:', directError.response?.data);
-        console.log('Trying Facebook Page fallback...');
         
         // Fallback to traditional Facebook Page method (for older setups)
         try {
           const pages = await this.instagramGraphService.getUserPages(longLivedToken.access_token);
-          console.log('Found pages:', pages.length);
           
           // Find the page with Instagram business account
           for (const page of pages) {
-            console.log(`Checking page: ${page.name} (ID: ${page.id})`);
             if (page.instagram_business_account) {
               instagramAccountId = page.instagram_business_account.id;
               facebookPageId = page.id;
-              console.log(`Found Instagram Business Account: ${instagramAccountId} linked to page: ${facebookPageId}`);
               break;
             }
           }
         } catch (pageError) {
-          console.log('Facebook Page method also failed:', pageError.message);
         }
       }
 
       if (!instagramAccountId) {
-        console.log('No Instagram account ID found, checking token response...');
         
         // Check if we have the Instagram account ID from the token response
         if (shortLivedToken.user_id) {
           instagramAccountId = shortLivedToken.user_id;
-          console.log('Using Instagram account ID from token response:', instagramAccountId);
         } else {
-          console.log('Token response:', tokenResponse);
           throw new HttpException(
             'No Instagram account found. Please ensure your Instagram account is set as Professional (Business or Creator) account type.',
             HttpStatus.BAD_REQUEST,
@@ -322,12 +301,6 @@ export class InstagramController {
       const tokenExpiresAt = new Date();
       tokenExpiresAt.setSeconds(tokenExpiresAt.getSeconds() + longLivedToken.expires_in);
 
-      console.log('=== UPDATING ACCOUNT WITH INSTAGRAM INFO ===');
-      console.log('Account ID:', account.id);
-      console.log('Instagram Info:', instagramInfo);
-      console.log('Username to save:', instagramInfo.username);
-      console.log('Instagram Account ID:', instagramAccountId);
-      console.log('============================================');
 
       await this.igAccountRepository.update(account.id, {
         instagramAccountId: instagramAccountId,
@@ -344,7 +317,6 @@ export class InstagramController {
         mediaCount: instagramInfo.media_count,
       });
 
-      console.log('Account updated successfully!');
 
       // Redirect to frontend with success message
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -446,9 +418,6 @@ export class InstagramController {
     @GetUser() user: User,
     @Body() postData: { contentId: number; accountId: number },
   ) {
-    console.log('=== INSTAGRAM POST REQUEST ===');
-    console.log('User ID:', user.id);
-    console.log('Post Data:', postData);
     
     const { contentId, accountId } = postData;
 
@@ -458,32 +427,15 @@ export class InstagramController {
     });
 
     if (!account) {
-      console.log('Account not found for user:', user.id, 'account:', accountId);
       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
     }
 
-    console.log('Account found:', {
-      id: account.id,
-      name: account.name,
-      isConnected: account.isConnected,
-      hasAccessToken: !!account.accessToken,
-      hasInstagramAccountId: !!account.instagramAccountId,
-      instagramAccountId: account.instagramAccountId,
-      instagramUsername: account.instagramUsername,
-      username: account.username
-    });
 
     if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
-      console.log('Connection check failed:', {
-        isConnected: account.isConnected,
-        hasAccessToken: !!account.accessToken,
-        hasInstagramAccountId: !!account.instagramAccountId
-      });
       throw new HttpException('Instagram account not connected', HttpStatus.BAD_REQUEST);
     }
 
     try {
-      console.log('Fetching content:', { contentId, accountId });
       
       // Get the content with its media
       const content = await this.contentRepository.findOne({
@@ -492,38 +444,21 @@ export class InstagramController {
       });
 
       if (!content) {
-        console.log('Content not found:', { contentId, accountId });
         throw new HttpException('Content not found', HttpStatus.NOT_FOUND);
       }
 
-      console.log('Content found:', {
-        id: content.id,
-        caption: content.caption,
-        status: content.status,
-        mediaCount: content.media?.length || 0,
-        hashTags: content.hashTags
-      });
 
       if (content.status === ContentStatus.PUBLISHED) {
-        console.log('Content already published:', content.id);
         throw new HttpException('Content has already been published', HttpStatus.BAD_REQUEST);
       }
 
       if (!content.media || content.media.length === 0) {
-        console.log('Content has no media files:', content.id);
         throw new HttpException('Content has no media files to post', HttpStatus.BAD_REQUEST);
       }
 
       // Use the first media file for posting
       const primaryMedia = content.media[0];
       
-      console.log('Primary media:', {
-        id: primaryMedia.id,
-        fileName: primaryMedia.fileName,
-        filePath: primaryMedia.filePath,
-        mediaType: primaryMedia.mediaType,
-        mimeType: primaryMedia.mimeType
-      });
       
       // Prepare caption with hashtags
       let caption = content.caption || '';
@@ -532,8 +467,6 @@ export class InstagramController {
         caption = caption ? `${caption}\n\n${hashtagsText}` : hashtagsText;
       }
 
-      console.log('Prepared caption:', caption);
-      console.log('Calling Instagram posting service...');
 
       // Post to Instagram using the posting service
       const result = await this.instagramPostingService.postToInstagram({
@@ -543,7 +476,6 @@ export class InstagramController {
         hashtags: content.hashTags,
       });
 
-      console.log('Posting service result:', result);
 
       if (result.success) {
         // Update content status to published
@@ -596,9 +528,6 @@ export class InstagramController {
     @GetUser() user: User,
     @Param('accountId', ParseIntPipe) accountId: number,
   ) {
-    console.log('=== TEST CONNECTION REQUEST ===');
-    console.log('User ID:', user.id);
-    console.log('Account ID:', accountId);
     
     // Verify the account belongs to the user
     const account = await this.igAccountRepository.findOne({
@@ -606,38 +535,15 @@ export class InstagramController {
     });
 
     if (!account) {
-      console.log('Account not found for user:', user.id, 'account:', accountId);
       throw new HttpException('Account not found', HttpStatus.NOT_FOUND);
     }
 
-    console.log('Account found:', {
-      id: account.id,
-      name: account.name,
-      isConnected: account.isConnected,
-      hasAccessToken: !!account.accessToken,
-      hasInstagramAccountId: !!account.instagramAccountId,
-      instagramAccountId: account.instagramAccountId,
-      instagramUsername: account.instagramUsername,
-      username: account.username,
-      tokenExpiresAt: account.tokenExpiresAt
-    });
 
     if (!account.isConnected || !account.accessToken || !account.instagramAccountId) {
-      console.log('Connection check failed:', {
-        isConnected: account.isConnected,
-        hasAccessToken: !!account.accessToken,
-        hasInstagramAccountId: !!account.instagramAccountId
-      });
       throw new HttpException('Instagram account not connected', HttpStatus.BAD_REQUEST);
     }
 
     try {
-      console.log('=== TESTING INSTAGRAM CONNECTION ===');
-      console.log('Account ID:', account.id);
-      console.log('Instagram Account ID:', account.instagramAccountId);
-      console.log('Access Token:', account.accessToken ? `${account.accessToken.substring(0, 20)}...` : 'NOT SET');
-      console.log('Token Expires At:', account.tokenExpiresAt);
-      console.log('Is Connected:', account.isConnected);
       
       // Test the connection by getting account info
       const instagramInfo = await this.instagramGraphService.getInstagramAccountInfo(
@@ -645,8 +551,6 @@ export class InstagramController {
         account.accessToken,
       );
 
-      console.log('Test connection successful:', instagramInfo);
-      console.log('=====================================');
 
       return {
         success: true,

@@ -73,34 +73,22 @@ export class InstagramPostingService {
       // public accessable media url for testing
       // const mediaUrl = 'https://photographylife.com/wp-content/uploads/2014/10/Nikon-D750-Sample-Image-36.jpg';  
 
-      console.log('Posting to Instagram:');
-      console.log('- Account ID:', account.id);
-      console.log('- Instagram Account ID:', account.instagramAccountId);
-      console.log('- Account Type:', account.type);
-      console.log('- Facebook Page ID:', account.instagramUsername);
-      console.log('- Access Token:', account.accessToken ? `${account.accessToken.substring(0, 20)}...` : 'NOT SET');
-      console.log('- Media URL:', mediaUrl);
-      console.log('- Media Type:', media.mediaType);
 
       // First, let's verify the account info with current token
       try {
-        console.log('Verifying Instagram account access...');
         const accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
           account.instagramAccountId!,
           account.accessToken!
         );
-        console.log('Account verification successful:', accountInfo.id, accountInfo.username);
       } catch (verifyError) {
         console.error('Account verification failed:', verifyError.message);
         
         // Try with 'me' endpoint instead
         try {
-          console.log('Trying verification with /me endpoint...');
           const accountInfo = await this.instagramGraphService.getInstagramAccountInfo(
             'me',
             account.accessToken!
           );
-          console.log('Account verification with /me successful:', accountInfo.id, accountInfo.username);
         } catch (meError) {
           console.error('Account verification with /me also failed:', meError.message);
           throw new HttpException(
@@ -119,7 +107,6 @@ export class InstagramPostingService {
             HttpStatus.BAD_REQUEST,
           );
         }
-        console.log('- Media URL is accessible');
       } catch (error) {
         console.error('- Media URL check failed:', error.message);
         throw new HttpException(
@@ -155,10 +142,7 @@ export class InstagramPostingService {
         postingEndpoint = account.instagramAccountId;
         
         if (account.instagramUsername) {
-          console.log('Using direct Instagram Account ID (legacy Facebook Page setup):', postingEndpoint);
-          console.log('Associated Facebook Page ID:', account.instagramUsername);
         } else {
-          console.log('Using direct Instagram Account ID (NEW 2024 API - no Facebook Page needed!):', postingEndpoint);
         }
       } else {
         throw new HttpException(
@@ -167,10 +151,8 @@ export class InstagramPostingService {
         );
       }
       
-      console.log('Attempting to post with endpoint:', postingEndpoint);
       
       // Check posting permissions before attempting to post
-      console.log('Checking posting permissions...');
       const hasPermissions = await this.instagramGraphService.checkPostingPermissions(
         postingEndpoint,
         account.accessToken!
@@ -183,7 +165,6 @@ export class InstagramPostingService {
         );
       }
       
-      console.log('Posting permissions confirmed, proceeding with upload...');
       
       if (media.mediaType === 'video') {
         // Post as Reel for videos
