@@ -13,6 +13,7 @@ import { CreateContentDto } from './dto/create-content.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { CreateContentMediaDto } from './dto/create-content-media.dto';
 import { VertexAIMediaService } from '../ai/services/vertex-ai-media.service';
+import { validateMultipleMediaForContentType, type ContentType as MediaContentType } from './utils/mediaValidation';
 import { MediaStorageService } from '../ai/services/media-storage.service';
 
 @Injectable()
@@ -109,6 +110,9 @@ export class ContentService {
       .createQueryBuilder('content')
       .leftJoinAndSelect('content.account', 'account')
       .leftJoinAndSelect('content.media', 'media')
+      .leftJoinAndSelect('content.scheduleContent', 'scheduleContent')
+      .leftJoinAndSelect('scheduleContent.schedule', 'schedule')
+      .leftJoinAndSelect('scheduleContent.timeSlot', 'timeSlot')
       .where('content.id = :id', { id })
       .andWhere('account.userId = :userId', { userId })
       .getOne();
@@ -123,7 +127,7 @@ export class ContentService {
   async findOneById(id: number): Promise<Content> {
     const content = await this.contentRepository.findOne({
       where: { id },
-      relations: ['account', 'media'],
+      relations: ['account', 'media', 'scheduleContent', 'scheduleContent.schedule', 'scheduleContent.timeSlot'],
     });
 
     if (!content) {
@@ -168,6 +172,45 @@ export class ContentService {
     return this.mediaRepository.save(media);
   }
 
+  async addMediaFiles(
+    contentId: number,
+    userId: string,
+    mediaFiles: Express.Multer.File[],
+    prompt?: string,
+  ): Promise<Media[]> {
+    const content = await this.findOne(contentId, userId);
+
+    // Validate media files against content type
+    const validation = validateMultipleMediaForContentType(mediaFiles, content.type as MediaContentType);
+    if (!validation.isValid) {
+      throw new BadRequestException(`Media validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    const createdMedia: Media[] = [];
+
+    for (const file of mediaFiles) {
+      const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
+      const createMediaDto: CreateContentMediaDto = {
+        fileName: file.filename,
+        filePath: file.filename,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        mediaType: mediaType as any,
+        prompt: prompt,
+      };
+
+      const media = this.mediaRepository.create({
+        ...createMediaDto,
+        contentId: content.id,
+      });
+
+      const savedMedia = await this.mediaRepository.save(media);
+      createdMedia.push(savedMedia);
+    }
+
+    return createdMedia;
+  }
+
   async getMedia(contentId: number, userId: string): Promise<Media[]> {
     const content = await this.findOne(contentId, userId);
     
@@ -192,6 +235,57 @@ export class ContentService {
     }
 
     await this.mediaRepository.remove(media);
+  }
+
+  async replaceMediaFiles(
+    contentId: number,
+    userId: string,
+    mediaFiles: Express.Multer.File[],
+    prompt?: string,
+  ): Promise<Media[]> {
+    const content = await this.findOne(contentId, userId);
+
+    // Validate media files against content type
+    const validation = validateMultipleMediaForContentType(mediaFiles, content.type as MediaContentType);
+    if (!validation.isValid) {
+      throw new BadRequestException(`Media validation failed: ${validation.errors.join(', ')}`);
+    }
+
+    // Delete all existing media for this content
+    const existingMedia = await this.mediaRepository.find({
+      where: { contentId: content.id },
+    });
+
+    if (existingMedia.length > 0) {
+      console.log(`🗑️ Deleting ${existingMedia.length} existing media files for content ${contentId}`);
+      await this.mediaRepository.remove(existingMedia);
+    }
+
+    // Add new media files
+    console.log(`📁 Adding ${mediaFiles.length} new media files for content ${contentId}`);
+    const createdMedia: Media[] = [];
+
+    for (const file of mediaFiles) {
+      const mediaType = file.mimetype.startsWith('video/') ? 'video' : 'image';
+      const createMediaDto: CreateContentMediaDto = {
+        fileName: file.filename,
+        filePath: file.filename,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+        mediaType: mediaType as any,
+        prompt: prompt,
+      };
+
+      const media = this.mediaRepository.create({
+        ...createMediaDto,
+        contentId: content.id,
+      });
+
+      const savedMedia = await this.mediaRepository.save(media);
+      createdMedia.push(savedMedia);
+    }
+
+    return createdMedia;
   }
 
   async regenerateMedia(mediaId: number, prompt: string, userId: string): Promise<Media> {

@@ -55,6 +55,9 @@ Strategy Guidance (apply, do not output):
 - If description suggests local business hours, bias to weekday daytimes; if lifestyle/entertainment, bias evenings/weekends
 - If {currentMonth} contains notable seasonal events, bias timeSlots and notes accordingly
 
+User Instructions:
+{userInstructions}
+
 Return only the structured schedule fields (the model will format as JSON via a schema).
 Include:
 - name: short, specific (e.g., "Q{currentMonth} {accountType} Growth Plan")
@@ -65,7 +68,7 @@ Include:
 
   }
 
-  async generateSchedule(account: IgAccount): Promise<AIGeneratedSchedule> {
+  async generateSchedule(account: IgAccount, userInstructions?: string): Promise<AIGeneratedSchedule> {
     try {
       // Get current date information
       const now = new Date();
@@ -92,6 +95,7 @@ Include:
         currentYear: now.getFullYear().toString(),
         tomorrowDate: tomorrow.toISOString().split('T')[0], // YYYY-MM-DD format
         endDate: endDate.toISOString().split('T')[0], // YYYY-MM-DD format
+        userInstructions: userInstructions || 'No specific instructions provided. Generate a schedule based on the account type and best practices for Instagram content strategy.'
       });
 
       // Use structured output with the model

@@ -21,6 +21,12 @@ export class ScheduleContentFilterDto {
   @IsOptional()
   timeSlotId?: number;
 
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  accountId?: number;
+
   @IsEnum(ScheduleContentStatus)
   @IsOptional()
   status?: ScheduleContentStatus;

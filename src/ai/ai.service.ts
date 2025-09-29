@@ -14,7 +14,7 @@ import { VertexAIMediaService } from './vertex-ai-media.service';
 import { CreateScheduleDto } from '../schedules/dto/create-schedule.dto';
 import { CreateContentDto } from '../content/dto/create-content.dto';
 import { ContentType } from '../content/entities/content.entity';
-import { PostType } from '../schedules/entities/time-slot.entity';
+import { PostType } from '../schedules/schedule-time-slot.entity';
 import { z } from 'zod';
 import moment from 'moment-timezone';
 
@@ -499,7 +499,15 @@ export class AiService {
       // Calculate the date for this time slot in the generation week
       const postDate = weekStart.clone().add(timeSlot.dayOfWeek, 'days');
       
+      // Skip if post date is outside the week boundaries
       if (postDate.isBefore(weekStart) || postDate.isAfter(weekEnd)) {
+        continue;
+      }
+
+      // Skip if this is the current week and the time slot has already passed
+      const currentDate = moment();
+      if (weekStart.isSame(currentDate.startOf('week')) && postDate.isBefore(currentDate, 'day')) {
+        console.log(`⏭️ Skipping time slot ${timeSlot.id} - date ${postDate.format('YYYY-MM-DD')} has already passed`);
         continue;
       }
 
@@ -625,7 +633,7 @@ export class AiService {
         const content = await this.contentService.create(userId, createContentDto);
 
          // Generate actual media file using VertexAIMediaService with ADC
-         const mediaType = timeSlot.postType === PostType.REEL ? 'video' : 'image';
+         const mediaType = timeSlot.postType === PostType.REEL || timeSlot.postType === PostType.STORY ? 'video' : 'image';
          const fileName = `ai_generated_${content.id}_${Date.now()}.${mediaType === 'video' ? 'mp4' : 'jpg'}`;
 
          // Create the full media prompt for saving to database
@@ -909,25 +917,48 @@ export class AiService {
 
   private async getNextWeekToGenerate(scheduleId: number, userId: string): Promise<{ weekStart: moment.Moment; weekEnd: moment.Moment } | null> {
     const schedule = await this.schedulesService.findOne(scheduleId, userId);
+    const currentDate = moment();
+    const currentDayOfWeek = currentDate.day(); // 0 = Sunday, 1 = Monday, etc.
+
+    // Determine the earliest possible week to start generating content
+    let startWeek: moment.Moment;
+    
+    if (schedule.startDate) {
+      const scheduleStartDate = moment(schedule.startDate);
+      startWeek = scheduleStartDate.startOf('week');
+      
+      // If schedule start date is in the future, use it
+      if (scheduleStartDate.isAfter(currentDate)) {
+        startWeek = scheduleStartDate.startOf('week');
+      } else {
+        // If schedule start date is in the past, start from current week
+        startWeek = currentDate.startOf('week');
+      }
+    } else {
+      // No start date specified, start from current week
+      startWeek = currentDate.startOf('week');
+    }
 
     // If no end date is set, we can generate indefinitely
     // If end date is set and we've reached it, don't generate more
     if (schedule.endDate) {
       const endDate = moment(schedule.endDate);
-      const currentWeek = moment().startOf('week');
-
-      // If current week is after end date, don't generate
-      if (currentWeek.isAfter(endDate)) {
+      
+      // If start week is after end date, don't generate
+      if (startWeek.isAfter(endDate)) {
         return null;
       }
     }
 
-    // Start from current week and look for the next week without content
-    let checkWeek = moment().startOf('week');
+    // Start from the determined start week and look for the next week without content
+    let checkWeek = startWeek.clone();
 
     // Check up to 52 weeks ahead (1 year)
     for (let i = 0; i < 52; i++) {
-      if (!await this.hasContentForWeek(scheduleId, checkWeek, userId)) {
+      // Check if this week has any valid time slots that haven't passed
+      const hasValidTimeSlots = await this.hasValidTimeSlotsInWeek(schedule, checkWeek, currentDate);
+      
+      if (hasValidTimeSlots && !await this.hasContentForWeek(scheduleId, checkWeek, userId)) {
         return {
           weekStart: checkWeek,
           weekEnd: checkWeek.clone().endOf('week')
@@ -945,6 +976,40 @@ export class AiService {
 
     // If we've checked 52 weeks and all have content, return null
     return null;
+  }
+
+  /**
+   * Check if a week has any valid time slots that haven't passed
+   * @param schedule The schedule containing time slots
+   * @param weekStart The start of the week to check
+   * @param currentDate The current date to compare against
+   * @returns true if there are valid time slots in this week
+   */
+  private hasValidTimeSlotsInWeek(schedule: any, weekStart: moment.Moment, currentDate: moment.Moment): boolean {
+    if (!schedule.timeSlots || schedule.timeSlots.length === 0) {
+      return false;
+    }
+
+    // Check if any time slot in this week hasn't passed
+    for (const timeSlot of schedule.timeSlots) {
+      if (!timeSlot.isEnabled) continue;
+
+      // Calculate the date for this time slot in the week
+      const postDate = weekStart.clone().add(timeSlot.dayOfWeek, 'days');
+      
+      // If this is the current week, check if the time slot hasn't passed
+      if (weekStart.isSame(currentDate.startOf('week'))) {
+        // For current week, only include time slots that are today or in the future
+        if (postDate.isSameOrAfter(currentDate, 'day')) {
+          return true;
+        }
+      } else {
+        // For future weeks, all time slots are valid
+        return true;
+      }
+    }
+
+    return false;
   }
 }
 

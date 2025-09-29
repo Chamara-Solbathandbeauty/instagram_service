@@ -3,13 +3,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SchedulesService } from './schedules.service';
 import { PostingSchedule } from './posting-schedule.entity';
-import { ScheduleRule } from './schedule-rule.entity';
 import { ScheduleTimeSlot } from './schedule-time-slot.entity';
 
 describe('SchedulesService', () => {
   let service: SchedulesService;
   let scheduleRepository: Repository<PostingSchedule>;
-  let ruleRepository: Repository<ScheduleRule>;
   let timeSlotRepository: Repository<ScheduleTimeSlot>;
 
   beforeEach(async () => {
@@ -29,14 +27,6 @@ describe('SchedulesService', () => {
           },
         },
         {
-          provide: getRepositoryToken(ScheduleRule),
-          useValue: {
-            create: jest.fn(),
-            save: jest.fn(),
-            delete: jest.fn(),
-          },
-        },
-        {
           provide: getRepositoryToken(ScheduleTimeSlot),
           useValue: {
             create: jest.fn(),
@@ -49,7 +39,6 @@ describe('SchedulesService', () => {
 
     service = module.get<SchedulesService>(SchedulesService);
     scheduleRepository = module.get<Repository<PostingSchedule>>(getRepositoryToken(PostingSchedule));
-    ruleRepository = module.get<Repository<ScheduleRule>>(getRepositoryToken(ScheduleRule));
     timeSlotRepository = module.get<Repository<ScheduleTimeSlot>>(getRepositoryToken(ScheduleTimeSlot));
   });
 

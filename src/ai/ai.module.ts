@@ -13,7 +13,6 @@ import { ScheduleTimeSlot } from '../schedules/schedule-time-slot.entity';
 // Multi-Agent System
 import { ImageGenerationAgent } from './agents/image-generation-agent';
 import { ReelGenerationAgent } from './agents/reel-generation-agent';
-import { VideoGenerationAgent } from './agents/video-generation-agent';
 import { MediaStorageService } from './services/media-storage.service';
 import { VertexAIMediaService } from './services/vertex-ai-media.service';
 import { MultiAgentContentService } from './services/multi-agent-content.service';
@@ -36,7 +35,6 @@ import { LLMService } from './services/llm.service';
     ContentAgentService,
     ImageGenerationAgent,
     ReelGenerationAgent,
-    VideoGenerationAgent,
     MediaStorageService,
     VertexAIMediaService,
     MultiAgentContentService,

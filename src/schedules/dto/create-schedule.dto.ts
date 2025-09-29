@@ -13,8 +13,8 @@ import {
   Max
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ScheduleFrequency, ScheduleStatus } from '../entities/schedule.entity';
-import { PostType } from '../entities/time-slot.entity';
+import { ScheduleFrequency, ScheduleStatus } from '../posting-schedule.entity';
+import { PostType } from '../schedule-time-slot.entity';
 
 export class CreateTimeSlotDto {
   @IsString()

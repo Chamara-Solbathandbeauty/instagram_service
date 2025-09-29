@@ -10,6 +10,7 @@ import { SchedulesModule } from './schedules/schedules.module';
 import { AIModule } from './ai/ai.module';
 import { InstagramModule } from './instagram/instagram.module';
 import { IgAccountsModule } from './ig-accounts/ig-accounts.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 // import { AppDataSource } from './data-source';
 
 
@@ -37,6 +38,7 @@ import { IgAccountsModule } from './ig-accounts/ig-accounts.module';
     AIModule,
     InstagramModule,
     IgAccountsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

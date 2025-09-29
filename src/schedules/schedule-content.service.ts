@@ -68,6 +68,132 @@ export class ScheduleContentService {
     return this.getScheduleContentById(savedScheduleContent.id, userId);
   }
 
+  /**
+   * Manually assign content to a specific schedule time slot for a specific date
+   */
+  async assignContentToTimeSlot(
+    scheduleId: number,
+    timeSlotId: number,
+    contentId: number,
+    scheduledDate: string,
+    userId: string
+  ): Promise<ScheduleContent> {
+    // Verify schedule ownership
+    const schedule = await this.scheduleRepository.findOne({
+      where: { id: scheduleId },
+      relations: ['account', 'timeSlots'],
+    });
+
+    if (!schedule || schedule.account.userId !== userId) {
+      throw new NotFoundException('Schedule not found or access denied');
+    }
+
+    // Verify time slot belongs to this schedule
+    const timeSlot = schedule.timeSlots.find(ts => ts.id === timeSlotId);
+    if (!timeSlot) {
+      throw new NotFoundException('Time slot not found or does not belong to this schedule');
+    }
+
+    // Verify content ownership
+    const content = await this.contentRepository.findOne({
+      where: { id: contentId },
+      relations: ['account'],
+    });
+
+    if (!content || content.account.userId !== userId) {
+      throw new NotFoundException('Content not found or access denied');
+    }
+
+    // Check if content is already scheduled anywhere
+    const existingSchedule = await this.scheduleContentRepository.findOne({
+      where: { contentId: contentId },
+    });
+
+    if (existingSchedule) {
+      throw new BadRequestException('Content is already scheduled');
+    }
+
+    // Check if this time slot is already filled for this specific date
+    const existingAssignment = await this.scheduleContentRepository.findOne({
+      where: {
+        scheduleId: scheduleId,
+        timeSlotId: timeSlotId,
+        scheduledDate: new Date(scheduledDate),
+      },
+    });
+
+    if (existingAssignment) {
+      throw new BadRequestException(
+        `Time slot is already filled for ${scheduledDate}. Please choose a different date or time slot.`
+      );
+    }
+
+    // Create schedule content assignment
+    const scheduleContent = this.scheduleContentRepository.create({
+      scheduleId: scheduleId,
+      contentId: contentId,
+      timeSlotId: timeSlotId,
+      scheduledDate: new Date(scheduledDate),
+      scheduledTime: timeSlot.startTime,
+      status: 'queued' as any,
+      priority: 5,
+      notes: `Manually assigned to ${scheduledDate}`,
+    });
+
+    const savedScheduleContent = await this.scheduleContentRepository.save(scheduleContent);
+
+    // Add to content queue
+    await this.addToContentQueue(savedScheduleContent);
+
+    return this.getScheduleContentById(savedScheduleContent.id, userId);
+  }
+
+  /**
+   * Get available time slots for a specific date
+   */
+  async getAvailableTimeSlotsForDate(
+    scheduleId: number,
+    scheduledDate: string,
+    userId: string
+  ): Promise<any[]> {
+    // Verify schedule ownership
+    const schedule = await this.scheduleRepository.findOne({
+      where: { id: scheduleId },
+      relations: ['account', 'timeSlots'],
+    });
+
+    if (!schedule || schedule.account.userId !== userId) {
+      throw new NotFoundException('Schedule not found or access denied');
+    }
+
+    // Get all time slots for this schedule
+    const allTimeSlots = schedule.timeSlots.filter(ts => ts.isEnabled);
+
+    // Get already assigned time slots for this date
+    const assignedTimeSlots = await this.scheduleContentRepository.find({
+      where: {
+        scheduleId: scheduleId,
+        scheduledDate: new Date(scheduledDate),
+      },
+      relations: ['timeSlot'],
+    });
+
+    const assignedTimeSlotIds = assignedTimeSlots.map(sc => sc.timeSlotId);
+
+    // Return available time slots (not assigned for this date)
+    return allTimeSlots
+      .filter(ts => !assignedTimeSlotIds.includes(ts.id))
+      .map(ts => ({
+        id: ts.id,
+        startTime: ts.startTime,
+        endTime: ts.endTime,
+        dayOfWeek: ts.dayOfWeek,
+        postType: ts.postType,
+        label: ts.label,
+        isAvailable: true,
+      }));
+  }
+
   async getScheduleContentById(id: number, userId: string): Promise<ScheduleContent> {
     const scheduleContent = await this.scheduleContentRepository.findOne({
       where: { id },
@@ -106,6 +232,10 @@ export class ScheduleContentService {
 
     if (filters.timeSlotId) {
       queryBuilder.andWhere('scheduleContent.timeSlotId = :timeSlotId', { timeSlotId: filters.timeSlotId });
+    }
+
+    if (filters.accountId) {
+      queryBuilder.andWhere('account.id = :accountId', { accountId: filters.accountId });
     }
 
     if (filters.status) {

@@ -11,6 +11,7 @@ import {
   Query,
   UseInterceptors,
   UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -105,12 +106,46 @@ export class ContentController {
 
   // Media operations
   @Post(':id/media')
+  @UseInterceptors(
+    FilesInterceptor('mediaFiles', 10, {
+      storage: diskStorage({
+        destination: './uploads/media',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
+          callback(null, filename);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|mp4|mov|avi)$/)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Only image and video files are allowed!'), false);
+        }
+      },
+    }),
+  )
   addMedia(
     @Param('id') id: string,
     @GetUser() user: any,
-    @Body() createMediaDto: CreateContentMediaDto,
+    @UploadedFiles() mediaFiles?: Express.Multer.File[],
+    @Body() body?: { prompt?: string }
   ) {
-    return this.contentService.addMedia(+id, user.id, createMediaDto);
+    if (mediaFiles && mediaFiles.length > 0) {
+      return this.contentService.addMediaFiles(+id, user.id, mediaFiles, body?.prompt);
+    } else {
+      // Fallback to manual media creation if no files uploaded
+      const createMediaDto: CreateContentMediaDto = {
+        fileName: body?.prompt || 'manual-media',
+        filePath: body?.prompt || 'manual-media',
+        fileSize: 0,
+        mimeType: 'text/plain',
+        mediaType: 'image' as any,
+        prompt: body?.prompt,
+      };
+      return this.contentService.addMedia(+id, user.id, createMediaDto);
+    }
   }
 
   @Get(':id/media')
@@ -130,6 +165,40 @@ export class ContentController {
     @GetUser() user: any
   ) {
     return this.contentService.regenerateMedia(+mediaId, body.prompt, user.id);
+  }
+
+  @Post(':id/media/replace')
+  @UseInterceptors(
+    FilesInterceptor('mediaFiles', 10, {
+      storage: diskStorage({
+        destination: './uploads/media',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const ext = extname(file.originalname);
+          const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
+          callback(null, filename);
+        },
+      }),
+      fileFilter: (req, file, callback) => {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif|mp4|mov|avi)$/)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Only image and video files are allowed!'), false);
+        }
+      },
+    }),
+  )
+  replaceMedia(
+    @Param('id') id: string,
+    @GetUser() user: any,
+    @UploadedFiles() mediaFiles?: Express.Multer.File[],
+    @Body() body?: { prompt?: string }
+  ) {
+    if (mediaFiles && mediaFiles.length > 0) {
+      return this.contentService.replaceMediaFiles(+id, user.id, mediaFiles, body?.prompt);
+    } else {
+      throw new BadRequestException('No media files provided for replacement');
+    }
   }
 }
 

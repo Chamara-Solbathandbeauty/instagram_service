@@ -86,6 +86,62 @@ export class ScheduleContentController {
     }
   }
 
+  @Get('available-time-slots')
+  async getAvailableTimeSlots(
+    @Query('scheduleId', ParseIntPipe) scheduleId: number,
+    @Query('scheduledDate') scheduledDate: string,
+    @GetUser() user: User,
+  ) {
+    try {
+      const timeSlots = await this.scheduleContentService.getAvailableTimeSlotsForDate(
+        scheduleId,
+        scheduledDate,
+        user.id
+      );
+      return {
+        message: 'Available time slots retrieved successfully',
+        data: timeSlots,
+      };
+    } catch (error) {
+      console.error('Error fetching available time slots:', error);
+      throw new HttpException(
+        error.message || 'Failed to fetch available time slots',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  @Post('assign')
+  async assignContentToTimeSlot(
+    @Body() body: {
+      scheduleId: number;
+      timeSlotId: number;
+      contentId: number;
+      scheduledDate: string;
+    },
+    @GetUser() user: User,
+  ) {
+    try {
+      const scheduleContent = await this.scheduleContentService.assignContentToTimeSlot(
+        body.scheduleId,
+        body.timeSlotId,
+        body.contentId,
+        body.scheduledDate,
+        user.id
+      );
+      return {
+        message: 'Content assigned to time slot successfully',
+        data: scheduleContent,
+      };
+    } catch (error) {
+      console.error('Error assigning content to time slot:', error);
+      throw new HttpException(
+        error.message || 'Failed to assign content to time slot',
+        error.status || HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   @Get('schedule/:scheduleId')
   async getScheduleContentBySchedule(
     @Param('scheduleId', ParseIntPipe) scheduleId: number,

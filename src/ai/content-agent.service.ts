@@ -11,13 +11,13 @@ import { Media } from '../content/media.entity';
 import { ScheduleContentStatus } from '../schedules/schedule-content.entity';
 import { ImageGenerationAgent } from './agents/image-generation-agent';
 import { ReelGenerationAgent } from './agents/reel-generation-agent';
-import { VideoGenerationAgent } from './agents/video-generation-agent';
 import { LLMService } from './services/llm.service';
+import moment from 'moment-timezone';
 
 // Zod schema for AI-generated content with structured ideas
 const GeneratedContentSchema = z.object({
   content: z.array(z.object({
-    type: z.enum(['post_with_image', 'reel', 'story', 'video']),
+    type: z.enum(['post_with_image', 'reel', 'story']),
     caption: z.string().min(10).max(2200),
     hashtags: z.array(z.string()).min(5).max(30),
     contentIdea: z.object({
@@ -28,8 +28,6 @@ const GeneratedContentSchema = z.object({
       mood: z.string().min(5).max(50).describe("Mood and atmosphere"),
       targetAudience: z.string().min(10).max(100).describe("Target audience for this content"),
     }).describe("Structured content idea for media generation"),
-    publishDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    publishTime: z.string().regex(/^\d{2}:\d{2}$/),
     priority: z.number().min(1).max(10),
     notes: z.string().optional(),
   }))
@@ -54,7 +52,6 @@ export class ContentAgentService {
     private mediaRepository: Repository<Media>,
     private imageGenerationAgent: ImageGenerationAgent,
     private reelGenerationAgent: ReelGenerationAgent,
-    private videoGenerationAgent: VideoGenerationAgent,
     private llmService: LLMService,
   ) {
     this.initializePrompt();
@@ -95,7 +92,7 @@ Generate content for the upcoming week ({generationWeek}) based on:
 ## Hard Requirements (must follow):
 1. Generate exactly {contentCount} pieces of content for the week
 2. Each content must have:
-   - type ∈ (post_with_image, reel, story, video)
+   - type ∈ (post_with_image, reel, story)
    - caption: 10-2200 characters, engaging and brand-appropriate
    - hashtags: 5-30 relevant hashtags, mix of trending and niche
    - contentIdea: Structured content idea with:
@@ -105,8 +102,6 @@ Generate content for the upcoming week ({generationWeek}) based on:
      - style: Visual style and aesthetic (5-50 chars)
      - mood: Mood and atmosphere (5-50 chars)
      - targetAudience: Specific target audience (10-100 chars)
-   - publishDate: YYYY-MM-DD format
-   - publishTime: HH:MM format (24-hour)
    - priority: 1-10 (higher = more important)
    - notes: Optional strategy notes
 
@@ -118,6 +113,9 @@ Generate content for the upcoming week ({generationWeek}) based on:
 ## Trending Topics to Consider:
 {trendingTopics}
 
+## User Instructions:
+{userInstructions}
+
 Generate content that feels authentic, engaging, and perfectly aligned with the account's brand and current trends.
     `);
   }
@@ -125,7 +123,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
   async generateContentForSchedule(
     scheduleId: number,
     userId: string,
-    generationWeek: string
+    generationWeek: string,
+    userInstructions?: string
   ): Promise<{ message: string; generatedContent: any[] }> {
     try {
       // 1. Get schedule and account details
@@ -155,14 +154,16 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         schedule,
         generationWeek,
         contentCount,
-        trendingTopics
+        trendingTopics,
+        userInstructions
       );
 
       // 6. Save generated content to database
       const savedContent = await this.saveGeneratedContent(
         generatedContent,
         schedule,
-        userId
+        userId,
+        generationWeek
       );
 
       return {
@@ -216,7 +217,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     schedule: any,
     generationWeek: string,
     contentCount: number,
-    trendingTopics: string[]
+    trendingTopics: string[],
+    userInstructions?: string
   ): Promise<any[]> {
     const prompt = await this.contentPrompt.format({
       accountName: schedule.account.name,
@@ -233,7 +235,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       currentDate: new Date().toISOString().split('T')[0],
       generationWeek,
       trendingTopics: trendingTopics.join(', '),
-      contentCount
+      contentCount,
+      userInstructions: userInstructions || 'No specific instructions provided. Generate content based on the account\'s brand and current trends.'
     });
 
     // Using simpler approach to avoid deep type instantiation
@@ -245,11 +248,57 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
   private async saveGeneratedContent(
     generatedContent: any[],
     schedule: any,
-    userId: string
+    userId: string,
+    generationWeek: string
   ): Promise<any[]> {
     const savedContent: any[] = [];
+    const weekStart = moment(generationWeek).startOf('week');
+    const weekEnd = weekStart.clone().endOf('week');
+    const currentDate = moment();
 
-    for (const contentData of generatedContent) {
+    // Get available time slots for this week
+    const availableTimeSlots = schedule.timeSlots.filter((timeSlot: any) => {
+      if (!timeSlot.isEnabled) return false;
+      
+      // Calculate the date for this time slot in the generation week
+      const postDate = weekStart.clone().add(timeSlot.dayOfWeek, 'days');
+      
+      // Skip if post date is outside the week boundaries
+      if (postDate.isBefore(weekStart) || postDate.isAfter(weekEnd)) {
+        return false;
+      }
+      
+      // Skip if this is the current week and the time slot has already passed
+      if (weekStart.isSame(currentDate.startOf('week')) && postDate.isBefore(currentDate, 'day')) {
+        return false;
+      }
+      
+      return true;
+    });
+
+    for (let i = 0; i < generatedContent.length && i < availableTimeSlots.length; i++) {
+      const contentData = generatedContent[i];
+      const timeSlot = availableTimeSlots[i];
+      
+      // Calculate the actual publish date based on generation week and time slot
+      const postDate = weekStart.clone().add(timeSlot.dayOfWeek, 'days');
+      const publishDate = postDate.format('YYYY-MM-DD');
+      const publishTime = timeSlot.startTime;
+      
+      console.log(`📅 Content Agent Debug: Calculating publish date for time slot ${timeSlot.id}`);
+      console.log(`📅 - Generation week: ${generationWeek}`);
+      console.log(`📅 - Week start: ${weekStart.format('YYYY-MM-DD')}`);
+      console.log(`📅 - Time slot day of week: ${timeSlot.dayOfWeek}`);
+      console.log(`📅 - Calculated post date: ${postDate.format('YYYY-MM-DD')}`);
+      console.log(`📅 - Publish date: ${publishDate}`);
+      console.log(`📅 - Publish time: ${publishTime}`);
+      
+      // Validate the calculated date
+      if (!postDate.isValid() || publishDate.includes('NaN') || publishDate.includes('Invalid')) {
+        console.error(`❌ Invalid date calculated: ${publishDate} for time slot ${timeSlot.id}`);
+        continue;
+      }
+
       // Create content record first
       const content = this.contentRepository.create({
         accountId: schedule.accountId,
@@ -269,15 +318,15 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       let mediaError: string | null = null;
 
       try {
-        const timeSlot = {
-          id: Date.now(),
-          label: 'Generated Content',
-          startTime: contentData.publishTime,
-          endTime: contentData.publishTime,
+        const timeSlotForMedia = {
+          id: timeSlot.id,
+          label: timeSlot.label || 'Generated Content',
+          startTime: publishTime,
+          endTime: timeSlot.endTime,
           postType: contentData.type,
           scheduleId: schedule.id,
           schedule: schedule,
-          dayOfWeek: 1,
+          dayOfWeek: timeSlot.dayOfWeek,
           isEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -288,8 +337,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
             mediaResult = await this.imageGenerationAgent.generateContent(
               schedule.account,
               schedule,
-              timeSlot,
-              contentData.publishDate,
+              timeSlotForMedia,
+              publishDate,
               contentData.contentIdea,
               contentData.caption,
               contentData.hashtags
@@ -299,31 +348,20 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
             mediaResult = await this.reelGenerationAgent.generateContent(
               schedule.account,
               schedule,
-              timeSlot,
-              contentData.publishDate,
-              contentData.contentIdea,
-              contentData.caption,
-              contentData.hashtags
-            );
-            break;
-          case 'video':
-            mediaResult = await this.videoGenerationAgent.generateContent(
-              schedule.account,
-              schedule,
-              timeSlot,
-              contentData.publishDate,
+              timeSlotForMedia,
+              publishDate,
               contentData.contentIdea,
               contentData.caption,
               contentData.hashtags
             );
             break;
           case 'story':
-            // Stories are short videos, use video generation agent
-            mediaResult = await this.videoGenerationAgent.generateContent(
+            // Stories are short videos, use reel generation agent
+            mediaResult = await this.reelGenerationAgent.generateContent(
               schedule.account,
               schedule,
-              timeSlot,
-              contentData.publishDate,
+              timeSlotForMedia,
+              publishDate,
               contentData.contentIdea,
               contentData.caption,
               contentData.hashtags
@@ -354,8 +392,9 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       const scheduleContent = this.scheduleContentRepository.create({
         scheduleId: schedule.id,
         contentId: savedContentRecord.id,
-        scheduledDate: new Date(contentData.publishDate),
-        scheduledTime: contentData.publishTime,
+        timeSlotId: timeSlot.id,
+        scheduledDate: new Date(publishDate),
+        scheduledTime: publishTime,
         status: ScheduleContentStatus.SCHEDULED,
         priority: contentData.priority,
         notes: contentData.notes,

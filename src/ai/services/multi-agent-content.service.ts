@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ImageGenerationAgent } from '../agents/image-generation-agent';
 import { ReelGenerationAgent } from '../agents/reel-generation-agent';
-import { VideoGenerationAgent } from '../agents/video-generation-agent';
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { ScheduleTimeSlot } from '../../schedules/schedule-time-slot.entity';
@@ -33,7 +32,6 @@ export class MultiAgentContentService {
     private contentRepository: Repository<Content>,
     private imageGenerationAgent: ImageGenerationAgent,
     private reelGenerationAgent: ReelGenerationAgent,
-    private videoGenerationAgent: VideoGenerationAgent,
   ) {}
 
   async generateContentForTimeSlot(
@@ -168,8 +166,8 @@ export class MultiAgentContentService {
         return this.imageGenerationAgent;
       case 'reel':
         return this.reelGenerationAgent;
-      case 'video':
-        return this.videoGenerationAgent;
+      case 'story':
+        return this.reelGenerationAgent;
       default:
         return null;
     }
@@ -181,8 +179,8 @@ export class MultiAgentContentService {
         return 'ImageGenerationAgent';
       case 'reel':
         return 'ReelGenerationAgent';
-      case 'video':
-        return 'VideoGenerationAgent';
+      case 'story':
+        return 'ReelGenerationAgent';
       default:
         return 'UnknownAgent';
     }

@@ -34,7 +34,7 @@ export class AIController {
   @Post('generate-schedule')
   async generateSchedule(
     @GetUser() user: User,
-    @Body() body: { accountId: number },
+    @Body() body: { accountId: number; userInstructions?: string },
   ) {
     try {
       // Verify account ownership
@@ -50,7 +50,7 @@ export class AIController {
       }
 
       // Generate AI schedule
-      const aiSchedule = await this.aiAgentService.generateSchedule(account);
+      const aiSchedule = await this.aiAgentService.generateSchedule(account, body.userInstructions);
 
       return {
         success: true,
@@ -104,7 +104,7 @@ export class AIController {
   @Post('generate-content')
   async generateContent(
     @GetUser() user: User,
-    @Body() body: { scheduleId: number; generationWeek?: string },
+    @Body() body: { scheduleId: number; generationWeek?: string; userInstructions?: string },
   ) {
     try {
       const generationWeek = body.generationWeek || await this.contentAgentService.getNextGeneratableWeek(body.scheduleId, user.id);
@@ -116,7 +116,8 @@ export class AIController {
       const result = await this.contentAgentService.generateContentForSchedule(
         body.scheduleId,
         user.id,
-        generationWeek
+        generationWeek,
+        body.userInstructions
       );
 
       return {

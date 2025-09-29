@@ -547,6 +547,50 @@ export class InstagramGraphService {
   }
 
   /**
+   * Post a Story to Instagram
+   */
+  async postStory(
+    instagramAccountId: string,
+    accessToken: string,
+    mediaUrl: string,
+    mediaType: 'IMAGE' | 'VIDEO'
+  ): Promise<InstagramMediaPublish> {
+    try {
+      console.log('Starting story upload to Instagram...');
+      
+      // Step 1: Upload the story media
+      const uploadResult = await this.uploadMedia(
+        instagramAccountId,
+        accessToken,
+        mediaUrl,
+        '', // Stories don't have captions
+        mediaType
+      );
+
+      console.log('Story upload successful, creation_id:', uploadResult.creation_id);
+      console.log('Starting story publishing...');
+
+      // Step 2: Publish the story
+      const publishResult = await this.publishMedia(
+        instagramAccountId,
+        accessToken,
+        uploadResult.creation_id,
+        3, // Max 3 retries for stories
+        10000 // Wait 10 seconds between retries
+      );
+
+      console.log('Story published successfully:', publishResult.id);
+      return publishResult;
+    } catch (error) {
+      console.error('Error posting story:', error.response?.data || error.message);
+      throw new HttpException(
+        'Failed to post story to Instagram',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * Check if access token is valid
    */
   async validateAccessToken(accessToken: string): Promise<boolean> {

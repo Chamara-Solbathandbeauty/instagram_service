@@ -10,7 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Content } from '../../content/entities/content.entity';
-import { Schedule } from '../../schedules/entities/schedule.entity';
+import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { AccountImage } from './account-image.entity';
 
 export const IgAccountType = {
@@ -92,8 +92,8 @@ export class IgAccount {
   @OneToMany(() => Content, (content) => content.account)
   content: Content[];
 
-  @OneToMany(() => Schedule, (schedule) => schedule.account)
-  schedules: Schedule[];
+  @OneToMany(() => PostingSchedule, (schedule) => schedule.account)
+  schedules: PostingSchedule[];
 
   @OneToMany(() => AccountImage, (image) => image.account)
   images: AccountImage[];
