@@ -32,6 +32,7 @@ describe('AIAgentService', () => {
         tone: 'professional',
         userId: 'test-user-id',
         user: null as any, // Mock user relationship
+        publishedMedia: [], // Add missing publishedMedia property
         instagramAccountId: null,
         facebookPageId: null,
         instagramUserId: null,

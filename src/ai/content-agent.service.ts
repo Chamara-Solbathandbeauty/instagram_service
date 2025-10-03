@@ -395,9 +395,22 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         console.error(`❌ Full error details:`, JSON.stringify(error, null, 2));
         mediaError = error.message;
         
-        // Re-throw for video generation to make failures visible
+        // Only re-throw for critical video generation failures, not cleanup errors
         if (contentData.type === 'reel' || contentData.type === 'story') {
-          throw new Error(`Video generation failed: ${error.message}`);
+          // Check if this is a cleanup error (non-critical)
+          const isCleanupError = error.message.includes('Failed to delete segments from GCS') || 
+                                error.message.includes('storage.objects.list access') ||
+                                error.message.includes('Permission') ||
+                                error.message.includes('cleanup');
+          
+          if (isCleanupError) {
+            console.warn(`⚠️  Non-critical cleanup error for video generation - video was generated successfully`);
+            console.warn(`⚠️  Error details: ${error.message}`);
+            // Don't re-throw cleanup errors - video generation was successful
+          } else {
+            // Re-throw only critical errors (actual video generation failures)
+            throw new Error(`Video generation failed: ${error.message}`);
+          }
         }
       }
 

@@ -12,6 +12,7 @@ import { User } from '../../users/entities/user.entity';
 import { Content } from '../../content/entities/content.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { AccountImage } from './account-image.entity';
+import { PublishedMedia } from '../../content/entities/published-media.entity';
 
 export const IgAccountType = {
   BUSINESS: 'business',
@@ -97,5 +98,8 @@ export class IgAccount {
 
   @OneToMany(() => AccountImage, (image) => image.account)
   images: AccountImage[];
+
+  @OneToMany(() => PublishedMedia, (publishedMedia) => publishedMedia.account)
+  publishedMedia: PublishedMedia[];
 }
 

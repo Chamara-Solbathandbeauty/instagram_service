@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { InstagramGraphService } from './instagram-graph.service';
 import { Media } from '../content/media.entity';
+import { PublishedMediaService } from '../content/published-media.service';
 
 export interface PostToInstagramRequest {
   accountId: number;
@@ -15,6 +16,8 @@ export interface PostToInstagramRequest {
 export interface PostToInstagramResponse {
   success: boolean;
   instagramMediaId?: string;
+  instagramUrl?: string;
+  instagramPermalink?: string;
   message: string;
 }
 
@@ -26,6 +29,7 @@ export class InstagramPostingService {
     @InjectRepository(Media)
     private mediaRepository: Repository<Media>,
     private instagramGraphService: InstagramGraphService,
+    private publishedMediaService: PublishedMediaService,
   ) {}
 
   /**
@@ -189,11 +193,59 @@ export class InstagramPostingService {
         );
       }
 
-      return {
-        success: true,
-        instagramMediaId: result.id,
-        message: 'Media posted to Instagram successfully',
-      };
+      // Store the published media record
+      try {
+        const publishedMedia = await this.publishedMediaService.createPublishedMedia({
+          contentId: media.contentId,
+          accountId: request.accountId,
+          instagramMediaId: result.id,
+          publishedAt: new Date(),
+          metadata: {
+            mediaType: media.mediaType,
+            originalMediaId: media.id,
+            caption: caption,
+            hashtags: request.hashtags,
+          },
+        });
+
+        // Get Instagram URL and permalink if available
+        let instagramUrl: string | undefined;
+        let instagramPermalink: string | undefined;
+
+        try {
+          // Try to get the media details to extract URL and permalink
+          const mediaDetails = await this.instagramGraphService.getMediaDetails(
+            result.id,
+            account.accessToken!
+          );
+          instagramUrl = mediaDetails.media_url;
+          instagramPermalink = mediaDetails.permalink;
+          
+          // Update the published media record with URL and permalink
+          await this.publishedMediaService.updatePublishedMedia(publishedMedia.id, {
+            instagramUrl,
+            instagramPermalink,
+          });
+        } catch (urlError) {
+          console.warn('Could not fetch Instagram URL and permalink:', urlError.message);
+        }
+
+        return {
+          success: true,
+          instagramMediaId: result.id,
+          instagramUrl,
+          instagramPermalink,
+          message: 'Media posted to Instagram successfully',
+        };
+      } catch (storageError) {
+        console.error('Error storing published media record:', storageError);
+        // Still return success since the post was successful, just storage failed
+        return {
+          success: true,
+          instagramMediaId: result.id,
+          message: 'Media posted to Instagram successfully (storage failed)',
+        };
+      }
     } catch (error) {
       console.error('=== INSTAGRAM POSTING ERROR ===');
       console.error('Error Type:', error.constructor.name);

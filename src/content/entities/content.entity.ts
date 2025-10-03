@@ -12,6 +12,7 @@ import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { Media } from '../media.entity';
 import { ScheduleContent } from '../../schedules/schedule-content.entity';
 import { VideoSegment } from '../../ai/entities/video-segment.entity';
+import { PublishedMedia } from './published-media.entity';
 
 export const ContentType = {
   REEL: 'reel',
@@ -85,6 +86,9 @@ export class Content {
 
   @OneToMany(() => VideoSegment, (segment) => segment.content, { cascade: true })
   videoSegments: VideoSegment[];
+
+  @OneToMany(() => PublishedMedia, (publishedMedia) => publishedMedia.content, { cascade: true })
+  publishedMedia: PublishedMedia[];
 
   // Extended video fields
   @Column({ nullable: true, default: 8 })

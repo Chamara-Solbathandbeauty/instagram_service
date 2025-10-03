@@ -607,6 +607,31 @@ export class InstagramGraphService {
   }
 
   /**
+   * Get media details including URL and permalink
+   */
+  async getMediaDetails(mediaId: string, accessToken: string): Promise<{
+    media_url?: string;
+    permalink?: string;
+    id: string;
+  }> {
+    try {
+      const response = await axios.get(`https://graph.instagram.com/${mediaId}`, {
+        params: {
+          fields: 'id,media_url,permalink',
+          access_token: accessToken,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error getting media details:', error.response?.data || error.message);
+      throw new HttpException(
+        'Failed to get media details from Instagram',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * Refresh access token if needed
    */
   async refreshAccessToken(igAccount: IgAccount): Promise<string | null> {
