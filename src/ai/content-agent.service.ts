@@ -309,6 +309,9 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         hashTags: contentData.hashtags,
         usedTopics: contentData.contentIdea.description,
         tone: schedule.account.tone || 'professional',
+        // Set default duration based on content type
+        desiredDuration: (contentData.type === 'reel' || contentData.type === 'story') ? 30 : 8,
+        isExtendedVideo: (contentData.type === 'reel' || contentData.type === 'story'),
       });
 
       const savedContentRecord = await this.contentRepository.save(content);
@@ -345,6 +348,7 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
             );
             break;
           case 'reel':
+            // Pass contentId to enable extended video generation
             mediaResult = await this.reelGenerationAgent.generateContent(
               schedule.account,
               schedule,
@@ -352,11 +356,12 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
               publishDate,
               contentData.contentIdea,
               contentData.caption,
-              contentData.hashtags
+              contentData.hashtags,
+              savedContentRecord.id  // Pass contentId for 30s video generation
             );
             break;
           case 'story':
-            // Stories are short videos, use reel generation agent
+            // Stories are short videos, use reel generation agent with 30s support
             mediaResult = await this.reelGenerationAgent.generateContent(
               schedule.account,
               schedule,
@@ -364,7 +369,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
               publishDate,
               contentData.contentIdea,
               contentData.caption,
-              contentData.hashtags
+              contentData.hashtags,
+              savedContentRecord.id  // Pass contentId for 30s video generation
             );
             break;
           default:
@@ -384,8 +390,15 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         }
 
       } catch (error) {
-        console.error(`Error generating media for content type ${contentData.type}:`, error);
+        console.error(`❌ Error generating media for content type ${contentData.type}:`, error);
+        console.error(`❌ Error stack:`, error.stack);
+        console.error(`❌ Full error details:`, JSON.stringify(error, null, 2));
         mediaError = error.message;
+        
+        // Re-throw for video generation to make failures visible
+        if (contentData.type === 'reel' || contentData.type === 'story') {
+          throw new Error(`Video generation failed: ${error.message}`);
+        }
       }
 
       // Create schedule content record

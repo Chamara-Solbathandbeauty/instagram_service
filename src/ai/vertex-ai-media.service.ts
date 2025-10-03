@@ -39,7 +39,7 @@ export interface VertexAIMediaResponse {
 
 @Injectable()
 export class VertexAIMediaService {
-  private readonly vertexAiProjectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  private readonly vertexAiProjectId = process.env.GOOGLE_CLOUD_PROJECT;
   private readonly vertexAiLocation = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
   private readonly auth: GoogleAuth;
 

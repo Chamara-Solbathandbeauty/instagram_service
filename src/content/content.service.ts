@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Content, ContentType, ContentStatus } from './entities/content.entity';
 import { Media } from './media.entity';
+import { VideoSegment } from '../ai/entities/video-segment.entity';
 import { IgAccountsService } from '../ig-accounts/ig-accounts.service';
 import { CreateContentDto } from './dto/create-content.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
@@ -15,6 +16,8 @@ import { CreateContentMediaDto } from './dto/create-content-media.dto';
 import { VertexAIMediaService } from '../ai/services/vertex-ai-media.service';
 import { validateMultipleMediaForContentType, type ContentType as MediaContentType } from './utils/mediaValidation';
 import { MediaStorageService } from '../ai/services/media-storage.service';
+import { ExtendedVideoGenerationService } from '../ai/services/extended-video-generation.service';
+import { ContentIdea } from '../ai/services/video-script-generation.service';
 
 @Injectable()
 export class ContentService {
@@ -23,9 +26,12 @@ export class ContentService {
     private contentRepository: Repository<Content>,
     @InjectRepository(Media)
     private mediaRepository: Repository<Media>,
+    @InjectRepository(VideoSegment)
+    private videoSegmentRepository: Repository<VideoSegment>,
     private igAccountsService: IgAccountsService,
     private vertexAiMediaService: VertexAIMediaService,
     private mediaStorageService: MediaStorageService,
+    private extendedVideoService: ExtendedVideoGenerationService,
   ) {}
 
   async create(userId: string, createContentDto: CreateContentDto, mediaFiles?: Express.Multer.File[]): Promise<Content> {
@@ -378,6 +384,60 @@ export class ContentService {
       console.error('Error regenerating media:', error);
       throw new Error(`Failed to regenerate media: ${error.message}`);
     }
+  }
+
+  /**
+   * Generate extended video (8s or 30s) for content
+   */
+  async generateExtendedVideo(
+    contentId: number,
+    contentIdea: ContentIdea,
+    desiredDuration: number,
+    userId: string,
+  ): Promise<Media> {
+    // Verify content exists and user owns it
+    const content = await this.findOne(contentId, userId);
+
+    // Validate duration
+    if (desiredDuration !== 8 && desiredDuration !== 30) {
+      throw new BadRequestException('Desired duration must be 8 or 30 seconds');
+    }
+
+    // Validate content type (only reels and stories)
+    if (content.type !== ContentType.REEL && content.type !== ContentType.STORY) {
+      throw new BadRequestException('Extended videos can only be generated for reels and stories');
+    }
+
+    try {
+      console.log(`🎬 Generating ${desiredDuration}s video for content ${contentId}`);
+
+      // Generate extended video
+      const media = await this.extendedVideoService.generateExtendedVideo(
+        contentId,
+        contentIdea,
+        desiredDuration,
+      );
+
+      return media;
+    } catch (error) {
+      console.error(`❌ Failed to generate extended video for content ${contentId}:`, error);
+      throw new Error(`Failed to generate extended video: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get video segments for a content
+   */
+  async getVideoSegments(contentId: number, userId: string): Promise<VideoSegment[]> {
+    // Verify content exists and user owns it
+    await this.findOne(contentId, userId);
+
+    const segments = await this.videoSegmentRepository.find({
+      where: { contentId },
+      order: { segmentNumber: 'ASC' },
+    });
+
+    return segments;
   }
 }
 

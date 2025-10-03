@@ -207,7 +207,7 @@ export class AIController {
   @Get('agents/status')
   async getAgentsStatus(@GetUser() user: User) {
     try {
-      const projectIdConfigured = !!process.env.GOOGLE_CLOUD_PROJECT_ID;
+      const projectIdConfigured = !!process.env.GOOGLE_CLOUD_PROJECT;
       const adcConfigured = !!process.env.GOOGLE_APPLICATION_CREDENTIALS;
       
       return {
@@ -233,7 +233,7 @@ export class AIController {
             },
           },
           vertexAiIntegration: {
-            projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'Not configured',
+            projectId: process.env.GOOGLE_CLOUD_PROJECT || 'Not configured',
             location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
             adcCredentials: process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'Configured' : 'Not configured',
             authenticationMethod: 'Application Default Credentials (ADC)',

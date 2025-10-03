@@ -11,6 +11,7 @@ import {
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { Media } from '../media.entity';
 import { ScheduleContent } from '../../schedules/schedule-content.entity';
+import { VideoSegment } from '../../ai/entities/video-segment.entity';
 
 export const ContentType = {
   REEL: 'reel',
@@ -81,5 +82,18 @@ export class Content {
 
   @OneToMany(() => ScheduleContent, (scheduleContent) => scheduleContent.content)
   scheduleContent: ScheduleContent[];
+
+  @OneToMany(() => VideoSegment, (segment) => segment.content, { cascade: true })
+  videoSegments: VideoSegment[];
+
+  // Extended video fields
+  @Column({ nullable: true, default: 8 })
+  desiredDuration: number; // 8 or 30 seconds
+
+  @Column({ type: 'json', nullable: true })
+  videoScript: any; // JSON array of segment prompts
+
+  @Column({ default: false })
+  isExtendedVideo: boolean; // true if this is a 30s video
 }
 

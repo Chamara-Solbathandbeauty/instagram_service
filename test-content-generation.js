@@ -8,7 +8,7 @@ async function testContentGeneration() {
     console.log('📋 Environment Variables:');
     console.log('GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? '✅ Set' : '❌ Missing');
     console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS ? '✅ Set' : '❌ Missing');
-    console.log('GOOGLE_CLOUD_PROJECT_ID:', process.env.GOOGLE_CLOUD_PROJECT_ID ? '✅ Set' : '❌ Missing');
+    console.log('GOOGLE_CLOUD_PROJECT:', process.env.GOOGLE_CLOUD_PROJECT ? '✅ Set' : '❌ Missing');
     console.log('GOOGLE_CLOUD_LOCATION:', process.env.GOOGLE_CLOUD_LOCATION ? '✅ Set' : '❌ Missing');
     console.log('MEDIA_STORAGE_PATH:', process.env.MEDIA_STORAGE_PATH ? '✅ Set' : '❌ Missing');
     console.log('');

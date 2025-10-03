@@ -9,6 +9,7 @@ import { ScheduleContent } from '../schedules/schedule-content.entity';
 import { Content } from '../content/entities/content.entity';
 import { Media } from '../content/media.entity';
 import { ScheduleTimeSlot } from '../schedules/schedule-time-slot.entity';
+import { VideoSegment } from './entities/video-segment.entity';
 
 // Multi-Agent System
 import { ImageGenerationAgent } from './agents/image-generation-agent';
@@ -18,6 +19,12 @@ import { VertexAIMediaService } from './services/vertex-ai-media.service';
 import { MultiAgentContentService } from './services/multi-agent-content.service';
 import { LLMService } from './services/llm.service';
 
+// Extended Video Services
+import { GcsStorageService } from './services/gcs-storage.service';
+import { VideoScriptGenerationService } from './services/video-script-generation.service';
+import { VideoConcatenationService } from './services/video-concatenation.service';
+import { ExtendedVideoGenerationService } from './services/extended-video-generation.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -26,7 +33,8 @@ import { LLMService } from './services/llm.service';
       ScheduleContent,
       ScheduleTimeSlot,
       Content,
-      Media
+      Media,
+      VideoSegment,
     ])
   ],
   providers: [
@@ -38,6 +46,11 @@ import { LLMService } from './services/llm.service';
     MediaStorageService,
     VertexAIMediaService,
     MultiAgentContentService,
+    // Extended Video Services
+    GcsStorageService,
+    VideoScriptGenerationService,
+    VideoConcatenationService,
+    ExtendedVideoGenerationService,
   ],
   controllers: [AIController],
   exports: [
@@ -45,6 +58,7 @@ import { LLMService } from './services/llm.service';
     ContentAgentService,
     MultiAgentContentService,
     MediaStorageService,
+    ExtendedVideoGenerationService,
   ],
 })
 export class AIModule {}

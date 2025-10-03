@@ -42,6 +42,15 @@ export class Media {
   @Column({ nullable: true })
   prompt: string;
 
+  @Column({ default: false })
+  isSegmented: boolean; // true if this is a concatenated multi-segment video
+
+  @Column({ nullable: true })
+  segmentCount: number; // Number of segments (1 for 8s, 4 for 30s)
+
+  @Column({ type: 'text', nullable: true })
+  gcsUri: string; // GCS URI for final video
+
   @CreateDateColumn()
   createdAt: Date;
 }

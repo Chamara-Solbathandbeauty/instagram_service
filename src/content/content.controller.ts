@@ -200,5 +200,29 @@ export class ContentController {
       throw new BadRequestException('No media files provided for replacement');
     }
   }
+
+  @Post(':id/generate-extended-video')
+  async generateExtendedVideo(
+    @Param('id') id: string,
+    @Body() body: {
+      contentIdea: {
+        title: string;
+        description: string;
+        visualElements: string[];
+        style: string;
+        mood: string;
+        targetAudience: string;
+      };
+      desiredDuration: number; // 8 or 30
+    },
+    @GetUser() user: any,
+  ) {
+    return this.contentService.generateExtendedVideo(+id, body.contentIdea, body.desiredDuration, user.id);
+  }
+
+  @Get(':id/video-segments')
+  async getVideoSegments(@Param('id') id: string, @GetUser() user: any) {
+    return this.contentService.getVideoSegments(+id, user.id);
+  }
 }
 
