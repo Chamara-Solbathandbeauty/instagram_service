@@ -446,10 +446,13 @@ export class ContentService {
    * Get published media details for a content
    */
   async getPublishedMedia(contentId: number, userId: string): Promise<any[]> {
+    console.log('🔧 ContentService: Getting published media for content:', contentId, 'user:', userId);
+    
     // Verify content exists and user owns it
     await this.findOne(contentId, userId);
 
     const publishedMedia = await this.publishedMediaService.findByContent(contentId);
+    console.log('📊 ContentService: Found published media:', publishedMedia);
     return publishedMedia;
   }
 

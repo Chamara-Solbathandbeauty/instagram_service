@@ -227,7 +227,10 @@ export class ContentController {
 
   @Get(':id/published-media')
   async getPublishedMedia(@Param('id') id: string, @GetUser() user: any) {
-    return this.contentService.getPublishedMedia(+id, user.id);
+    console.log('🔍 Backend: Getting published media for content:', id, 'user:', user.id);
+    const result = await this.contentService.getPublishedMedia(+id, user.id);
+    console.log('📊 Backend: Published media result:', result);
+    return result;
   }
 
 }
