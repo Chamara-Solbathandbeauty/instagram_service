@@ -224,5 +224,10 @@ export class ContentController {
   async getVideoSegments(@Param('id') id: string, @GetUser() user: any) {
     return this.contentService.getVideoSegments(+id, user.id);
   }
+
+  @Get(':id/published-media')
+  async getPublishedMedia(@Param('id') id: string, @GetUser() user: any) {
+    return this.contentService.getPublishedMedia(+id, user.id);
+  }
 }
 

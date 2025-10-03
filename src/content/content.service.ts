@@ -18,6 +18,7 @@ import { validateMultipleMediaForContentType, type ContentType as MediaContentTy
 import { MediaStorageService } from '../ai/services/media-storage.service';
 import { ExtendedVideoGenerationService } from '../ai/services/extended-video-generation.service';
 import { ContentIdea } from '../ai/services/video-script-generation.service';
+import { PublishedMediaService } from './published-media.service';
 
 @Injectable()
 export class ContentService {
@@ -32,6 +33,7 @@ export class ContentService {
     private vertexAiMediaService: VertexAIMediaService,
     private mediaStorageService: MediaStorageService,
     private extendedVideoService: ExtendedVideoGenerationService,
+    private publishedMediaService: PublishedMediaService,
   ) {}
 
   async create(userId: string, createContentDto: CreateContentDto, mediaFiles?: Express.Multer.File[]): Promise<Content> {
@@ -438,6 +440,17 @@ export class ContentService {
     });
 
     return segments;
+  }
+
+  /**
+   * Get published media details for a content
+   */
+  async getPublishedMedia(contentId: number, userId: string): Promise<any[]> {
+    // Verify content exists and user owns it
+    await this.findOne(contentId, userId);
+
+    const publishedMedia = await this.publishedMediaService.findByContent(contentId);
+    return publishedMedia;
   }
 }
 
