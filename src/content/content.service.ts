@@ -452,5 +452,6 @@ export class ContentService {
     const publishedMedia = await this.publishedMediaService.findByContent(contentId);
     return publishedMedia;
   }
+
 }
 

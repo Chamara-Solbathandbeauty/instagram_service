@@ -418,6 +418,7 @@ export class InstagramController {
     @GetUser() user: User,
     @Body() postData: { contentId: number; accountId: number },
   ) {
+    console.log('🚀 Instagram postContent called for content:', postData.contentId, 'account:', postData.accountId);
     
     const { contentId, accountId } = postData;
 
@@ -469,13 +470,14 @@ export class InstagramController {
 
 
       // Post to Instagram using the posting service
+      console.log('📤 Calling InstagramPostingService.postToInstagram...');
       const result = await this.instagramPostingService.postToInstagram({
         accountId: accountId,
         mediaId: primaryMedia.id,
         caption: caption,
         hashtags: content.hashTags,
       });
-
+      console.log('📤 InstagramPostingService.postToInstagram result:', result);
 
       if (result.success) {
         // Update content status to published

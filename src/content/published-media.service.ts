@@ -31,8 +31,17 @@ export class PublishedMediaService {
    * Create a new published media record
    */
   async createPublishedMedia(dto: CreatePublishedMediaDto): Promise<PublishedMedia> {
-    const publishedMedia = this.publishedMediaRepository.create(dto);
-    return await this.publishedMediaRepository.save(publishedMedia);
+    console.log('🔧 PublishedMediaService.createPublishedMedia called with:', dto);
+    
+    try {
+      const publishedMedia = this.publishedMediaRepository.create(dto);
+      const saved = await this.publishedMediaRepository.save(publishedMedia);
+      console.log('💾 Published media saved to database:', saved);
+      return saved;
+    } catch (error) {
+      console.error('❌ Error saving published media to database:', error);
+      throw error;
+    }
   }
 
   /**

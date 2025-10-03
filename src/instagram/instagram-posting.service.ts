@@ -195,6 +195,8 @@ export class InstagramPostingService {
 
       // Store the published media record
       try {
+        console.log('📝 Creating published media record for content:', media.contentId, 'account:', request.accountId, 'instagramMediaId:', result.id);
+        
         const publishedMedia = await this.publishedMediaService.createPublishedMedia({
           contentId: media.contentId,
           accountId: request.accountId,
@@ -207,6 +209,8 @@ export class InstagramPostingService {
             hashtags: request.hashtags,
           },
         });
+        
+        console.log('✅ Published media record created successfully:', publishedMedia.id);
 
         // Get Instagram URL and permalink if available
         let instagramUrl: string | undefined;

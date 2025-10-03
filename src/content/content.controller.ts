@@ -229,5 +229,6 @@ export class ContentController {
   async getPublishedMedia(@Param('id') id: string, @GetUser() user: any) {
     return this.contentService.getPublishedMedia(+id, user.id);
   }
+
 }
 
