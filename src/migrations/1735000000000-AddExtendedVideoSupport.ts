@@ -2,139 +2,165 @@ import { MigrationInterface, QueryRunner, Table, TableColumn, TableForeignKey } 
 
 export class AddExtendedVideoSupport1735000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create video_segments table
-    await queryRunner.createTable(
-      new Table({
-        name: 'video_segments',
-        columns: [
-          {
-            name: 'id',
-            type: 'int',
-            isPrimary: true,
-            isGenerated: true,
-            generationStrategy: 'increment',
-          },
-          {
-            name: 'contentId',
-            type: 'int',
-          },
-          {
-            name: 'segmentNumber',
-            type: 'int',
-          },
-          {
-            name: 'gcsUri',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'prompt',
-            type: 'text',
-          },
-          {
-            name: 'duration',
-            type: 'int',
-            default: 8,
-          },
-          {
-            name: 'status',
-            type: 'enum',
-            enum: ['pending', 'generating', 'completed', 'failed'],
-            default: "'pending'",
-          },
-          {
-            name: 'operationName',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'errorMessage',
-            type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'createdAt',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-          },
-          {
-            name: 'updatedAt',
-            type: 'timestamp',
-            default: 'CURRENT_TIMESTAMP',
-            onUpdate: 'CURRENT_TIMESTAMP',
-          },
-        ],
-      }),
-      true,
+    // Check if video_segments table exists
+    const videoSegmentsTable = await queryRunner.getTable('video_segments');
+    if (!videoSegmentsTable) {
+      // Create video_segments table
+      await queryRunner.createTable(
+        new Table({
+          name: 'video_segments',
+          columns: [
+            {
+              name: 'id',
+              type: 'int',
+              isPrimary: true,
+              isGenerated: true,
+              generationStrategy: 'increment',
+            },
+            {
+              name: 'contentId',
+              type: 'int',
+            },
+            {
+              name: 'segmentNumber',
+              type: 'int',
+            },
+            {
+              name: 'gcsUri',
+              type: 'text',
+              isNullable: true,
+            },
+            {
+              name: 'prompt',
+              type: 'text',
+            },
+            {
+              name: 'duration',
+              type: 'int',
+              default: 8,
+            },
+            {
+              name: 'status',
+              type: 'enum',
+              enum: ['pending', 'generating', 'completed', 'failed'],
+              default: "'pending'",
+            },
+            {
+              name: 'operationName',
+              type: 'text',
+              isNullable: true,
+            },
+            {
+              name: 'errorMessage',
+              type: 'text',
+              isNullable: true,
+            },
+            {
+              name: 'createdAt',
+              type: 'timestamp',
+              default: 'CURRENT_TIMESTAMP',
+            },
+            {
+              name: 'updatedAt',
+              type: 'timestamp',
+              default: 'CURRENT_TIMESTAMP',
+              onUpdate: 'CURRENT_TIMESTAMP',
+            },
+          ],
+        }),
+        true,
+      );
+    }
+
+    // Check if foreign key exists
+    const videoSegmentsTableForFK = await queryRunner.getTable('video_segments');
+    const hasForeignKey = videoSegmentsTableForFK?.foreignKeys?.some(fk => 
+      fk.columnNames.includes('contentId') && fk.referencedTableName === 'content'
     );
 
-    // Add foreign key
-    await queryRunner.createForeignKey(
-      'video_segments',
-      new TableForeignKey({
-        columnNames: ['contentId'],
-        referencedColumnNames: ['id'],
-        referencedTableName: 'content',
-        onDelete: 'CASCADE',
-      }),
-    );
+    if (!hasForeignKey) {
+      // Add foreign key
+      await queryRunner.createForeignKey(
+        'video_segments',
+        new TableForeignKey({
+          columnNames: ['contentId'],
+          referencedColumnNames: ['id'],
+          referencedTableName: 'content',
+          onDelete: 'CASCADE',
+        }),
+      );
+    }
 
     // Add columns to content table
-    await queryRunner.addColumn(
-      'content',
-      new TableColumn({
-        name: 'desiredDuration',
-        type: 'int',
-        isNullable: true,
-        default: 8,
-      }),
-    );
+    const contentTable = await queryRunner.getTable('content');
+    if (contentTable && !contentTable.findColumnByName('desiredDuration')) {
+      await queryRunner.addColumn(
+        'content',
+        new TableColumn({
+          name: 'desiredDuration',
+          type: 'int',
+          isNullable: true,
+          default: 8,
+        }),
+      );
+    }
 
-    await queryRunner.addColumn(
-      'content',
-      new TableColumn({
-        name: 'videoScript',
-        type: 'json',
-        isNullable: true,
-      }),
-    );
+    if (contentTable && !contentTable.findColumnByName('videoScript')) {
+      await queryRunner.addColumn(
+        'content',
+        new TableColumn({
+          name: 'videoScript',
+          type: 'json',
+          isNullable: true,
+        }),
+      );
+    }
 
-    await queryRunner.addColumn(
-      'content',
-      new TableColumn({
-        name: 'isExtendedVideo',
-        type: 'boolean',
-        default: false,
-      }),
-    );
+    if (contentTable && !contentTable.findColumnByName('isExtendedVideo')) {
+      await queryRunner.addColumn(
+        'content',
+        new TableColumn({
+          name: 'isExtendedVideo',
+          type: 'boolean',
+          default: false,
+        }),
+      );
+    }
 
     // Add columns to media table
-    await queryRunner.addColumn(
-      'media',
-      new TableColumn({
-        name: 'isSegmented',
-        type: 'boolean',
-        default: false,
-      }),
-    );
+    const mediaTable = await queryRunner.getTable('media');
+    if (mediaTable && !mediaTable.findColumnByName('isSegmented')) {
+      await queryRunner.addColumn(
+        'media',
+        new TableColumn({
+          name: 'isSegmented',
+          type: 'boolean',
+          default: false,
+        }),
+      );
+    }
 
-    await queryRunner.addColumn(
-      'media',
-      new TableColumn({
-        name: 'segmentCount',
-        type: 'int',
-        isNullable: true,
-      }),
-    );
+    if (mediaTable && !mediaTable.findColumnByName('segmentCount')) {
+      await queryRunner.addColumn(
+        'media',
+        new TableColumn({
+          name: 'segmentCount',
+          type: 'int',
+          isNullable: true,
+        }),
+      );
+    }
 
-    await queryRunner.addColumn(
-      'media',
-      new TableColumn({
-        name: 'gcsUri',
-        type: 'text',
-        isNullable: true,
-      }),
-    );
+    if (mediaTable && !mediaTable.findColumnByName('gcsUri')) {
+      await queryRunner.addColumn(
+        'media',
+        new TableColumn({
+          name: 'gcsUri',
+          type: 'text',
+          isNullable: true,
+        }),
+      );
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

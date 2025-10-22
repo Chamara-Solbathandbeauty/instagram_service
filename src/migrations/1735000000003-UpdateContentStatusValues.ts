@@ -4,41 +4,22 @@ export class UpdateContentStatusValues1735000000003 implements MigrationInterfac
   name = 'UpdateContentStatusValues1735000000003';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // First, check if there are any records with old status values
-    const result = await queryRunner.query(`SELECT COUNT(*) as count FROM "content" WHERE "status" IN ('generated', 'queued')`);
-    const hasOldValues = parseInt(result[0].count) > 0;
-    
-    if (hasOldValues) {
-      console.log('Found existing records with old status values, updating them...');
-      
-      // Update existing data to map old values to new values
-      await queryRunner.query(`UPDATE "content" SET "status" = 'pending' WHERE "status" = 'generated'`);
-      await queryRunner.query(`UPDATE "content" SET "status" = 'approved' WHERE "status" = 'queued'`);
-      
-      console.log('Successfully updated existing records');
-    }
-    
-    // Now handle the enum change
+    // First, add 'generated' to the enum if it doesn't exist
     try {
-      // Drop the old enum constraint first
-      await queryRunner.query(`ALTER TABLE "content" ALTER COLUMN "status" DROP DEFAULT`);
-      await queryRunner.query(`ALTER TABLE "content" ALTER COLUMN "status" TYPE VARCHAR`);
-      
-      // Drop the old enum type
-      await queryRunner.query(`DROP TYPE IF EXISTS "public"."content_status_enum"`);
-      
-      // Create the new enum
-      await queryRunner.query(`CREATE TYPE "public"."content_status_enum" AS ENUM('pending', 'approved', 'rejected', 'published')`);
-      
-      // Update the column to use the new enum
-      await queryRunner.query(`ALTER TABLE "content" ALTER COLUMN "status" TYPE "public"."content_status_enum" USING "status"::"text"::"public"."content_status_enum"`);
-      await queryRunner.query(`ALTER TABLE "content" ALTER COLUMN "status" SET DEFAULT 'pending'`);
-      
-      console.log('Successfully updated content status enum');
+      await queryRunner.query(`ALTER TYPE "content_status_enum" ADD VALUE 'generated'`);
+      console.log('Successfully added "generated" to content_status_enum');
     } catch (error) {
-      console.error('Error updating enum:', error);
-      throw error;
+      // If the value already exists, that's fine
+      if (error.message.includes('already exists')) {
+        console.log('Value "generated" already exists in enum');
+      } else {
+        throw error;
+      }
     }
+
+    // Since we can't use the new enum value in the same transaction,
+    // we'll skip the data migration for now and just ensure the enum is updated
+    console.log('Enum updated successfully. Data migration will be handled in a separate step if needed.');
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
