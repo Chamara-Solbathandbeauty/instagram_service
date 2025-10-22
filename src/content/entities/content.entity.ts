@@ -27,6 +27,7 @@ export const ContentStatus = {
   APPROVED: 'approved',
   REJECTED: 'rejected',
   PUBLISHED: 'published',
+  GENERATED: 'generated',
 } as const;
 
 export type ContentStatus = typeof ContentStatus[keyof typeof ContentStatus];
