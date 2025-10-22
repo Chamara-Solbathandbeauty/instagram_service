@@ -104,6 +104,26 @@ export class ContentController {
     return this.contentService.remove(+id, user.id);
   }
 
+  @Post('bulk-update-status')
+  async bulkUpdateStatus(
+    @Body() body: any,
+    @GetUser() user: any,
+  ) {
+    console.log('🔧 ContentController: bulkUpdateStatus received body:', body);
+    console.log('🔧 ContentController: user:', user.id);
+    return this.contentService.bulkUpdateStatus(body.contentIds, body.status, user.id);
+  }
+
+  @Post('bulk-delete')
+  async bulkDelete(
+    @Body() body: any,
+    @GetUser() user: any,
+  ) {
+    console.log('🔧 ContentController: bulkDelete received body:', body);
+    console.log('🔧 ContentController: user:', user.id);
+    return this.contentService.bulkDelete(body.contentIds, user.id);
+  }
+
   // Media operations
   @Post(':id/media')
   @UseInterceptors(
@@ -214,10 +234,11 @@ export class ContentController {
         targetAudience: string;
       };
       desiredDuration: number; // 8 or 30
+      aspectRatio?: '16:9' | '9:16'; // Video dimensions
     },
     @GetUser() user: any,
   ) {
-    return this.contentService.generateExtendedVideo(+id, body.contentIdea, body.desiredDuration, user.id);
+    return this.contentService.generateExtendedVideo(+id, body.contentIdea, body.desiredDuration, user.id, body.aspectRatio);
   }
 
   @Get(':id/video-segments')

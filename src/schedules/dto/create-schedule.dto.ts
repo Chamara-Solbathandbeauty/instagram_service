@@ -40,6 +40,22 @@ export class CreateTimeSlotDto {
   @IsOptional()
   @IsString()
   label?: string;
+
+  @IsOptional()
+  @IsString()
+  tone?: string;
+
+  @IsOptional()
+  @IsString()
+  dimensions?: string;
+
+  @IsOptional()
+  @IsString()
+  preferredVoiceAccent?: string;
+
+  @IsOptional()
+  @IsNumber()
+  reelDuration?: number;
 }
 
 export class CreateScheduleDto {

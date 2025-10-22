@@ -10,7 +10,8 @@ import { IgAccountsService } from '../ig-accounts/ig-accounts.service';
 import { SchedulesService } from '../schedules/schedules.service';
 import { ContentService } from '../content/content.service';
 import { ScheduleContentService } from '../schedule-content/schedule-content.service';
-import { VertexAIMediaService } from './vertex-ai-media.service';
+import { VertexAIMediaService } from './services/vertex-ai-media.service';
+import { AILoggerService } from './services/ai-logger.service';
 import { CreateScheduleDto } from '../schedules/dto/create-schedule.dto';
 import { CreateContentDto } from '../content/dto/create-content.dto';
 import { ContentType } from '../content/entities/content.entity';
@@ -26,6 +27,10 @@ const TimeSlotSchema = z.object({
   postType: z.enum(['REEL', 'STORY', 'POST_WITH_IMAGE']).describe('Type of content to post'),
   label: z.string().describe('Descriptive label explaining the purpose and timing'),
   isEnabled: z.boolean().describe('Whether this time slot is enabled'),
+  tone: z.string().optional().describe('Content tone: free text describing the desired tone (e.g., "professional", "casual and friendly", "authoritative and confident")'),
+  dimensions: z.string().optional().describe('Content dimensions: 1:1, 9:16, 4:5, 16:9'),
+  preferredVoiceAccent: z.string().optional().describe('Preferred voice accent: american, british, australian, neutral, canadian'),
+  reelDuration: z.number().optional().describe('Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)'),
 });
 
 const ScheduleSchema = z.object({
@@ -45,7 +50,7 @@ type ScheduleOutput = z.infer<typeof ScheduleSchema>;
 // Zod schema for content generation
 const ContentGenerationSchema = z.object({
   caption: z.string().describe('Engaging Instagram caption (max 2200 characters)'),
-  hashTags: z.array(z.string()).describe('Array of relevant hashtags (10-15 hashtags)'),
+  hashTags: z.array(z.string()).describe('Array of relevant hashtags (maximum 5 hashtags)'),
   usedTopics: z.string().describe('Topic focus for this post'),
   tone: z.string().describe('Content tone matching the account'),
   mediaDescription: z.string().describe('Detailed description of the image/video content to be generated'),
@@ -55,6 +60,11 @@ const ContentGenerationSchema = z.object({
 
 type ContentGenerationOutput = z.infer<typeof ContentGenerationSchema>;
 
+/**
+ * @deprecated This service is being phased out in favor of the new modular architecture.
+ * Use ScheduleGeneratorService for schedule generation and ContentGeneratorService for content generation.
+ * This service will be removed in a future version.
+ */
 @Injectable()
 export class AiService {
   private geminiModel: ChatGoogleGenerativeAI;
@@ -68,18 +78,20 @@ export class AiService {
     private contentService: ContentService,
     private scheduleContentService: ScheduleContentService,
     private vertexAIMediaService: VertexAIMediaService,
+    private aiLogger: AILoggerService,
   ) {
-    console.log('🚀 AI Service Debug: Starting AI Service initialization...');
+    this.aiLogger.info('Starting AI Service initialization', 'AiService');
     this.initializeGemini();
     this.initializeVertexAI();
     this.initializeVertexAIMedia();
 
     // Summary of available models
-    console.log('📊 AI Service Debug: Initialization Summary:');
-    console.log('📊 AI Service Debug: - Gemini (text):', !!this.geminiModel ? 'AVAILABLE' : 'NOT AVAILABLE');
-    console.log('📊 AI Service Debug: - Vertex AI (text):', !!this.vertexAIModel ? 'AVAILABLE' : 'NOT AVAILABLE');
-    console.log('📊 AI Service Debug: - Vertex AI (media):', !!this.vertexAI ? 'AVAILABLE' : 'NOT AVAILABLE');
-    console.log('🎯 AI Service Debug: Content generation will use:', this.vertexAIModel ? 'Vertex AI (preferred)' : this.geminiModel ? 'Gemini (fallback)' : 'NONE - will fail');
+    this.aiLogger.info('AI Service initialization completed', 'AiService', {
+      gemini: !!this.geminiModel,
+      vertexAI: !!this.vertexAIModel,
+      vertexAIMedia: !!this.vertexAI,
+      contentModel: this.vertexAIModel ? 'Vertex AI' : this.geminiModel ? 'Gemini' : 'NONE'
+    });
   }
 
   private initializeGemini() {
@@ -96,12 +108,12 @@ export class AiService {
           temperature: 0.7,
           maxOutputTokens: 4096,
         });
-        console.log('✅ AI Service Debug: Gemini model initialized successfully');
+        this.aiLogger.info('Gemini model initialized successfully', 'AiService');
       } catch (error) {
-        console.error('❌ AI Service Debug: Failed to initialize Gemini model:', error.message);
+        this.aiLogger.error('Failed to initialize Gemini model', 'AiService', error);
       }
     } else {
-      console.warn('⚠️ AI Service Debug: Gemini not initialized - GOOGLE_API_KEY is missing');
+      this.aiLogger.warn('Gemini not initialized - GOOGLE_API_KEY is missing', 'AiService');
     }
   }
 
@@ -223,6 +235,11 @@ export class AiService {
       - Consider the current date context for immediate relevance
       - MANDATORY: Include startDate and endDate fields in YYYY-MM-DD format
       - MANDATORY: Use the provided startDate and endDate values exactly as given
+      - For each time slot, include:
+        * tone: free text describing the desired tone (e.g., "professional", "casual and friendly", "authoritative and confident")
+        * dimensions: 1:1 for posts, 9:16 for reels/stories, 4:5 for Instagram posts
+        * preferredVoiceAccent: american, british, australian, neutral, or canadian
+        * reelDuration: 8, 16, 24, or 32 seconds (ONLY for REEL postType, omit for others)
 
       RESPOND WITH ONLY VALID JSON (no markdown, no explanations, no additional text):
       {{
@@ -241,7 +258,11 @@ export class AiService {
             "dayOfWeek": 0,
             "postType": "REEL",
             "label": "Strategic label explaining the purpose and timing",
-            "isEnabled": true
+            "isEnabled": true,
+            "tone": "professional",
+            "dimensions": "9:16",
+            "preferredVoiceAccent": "american",
+            "reelDuration": 16
           }}
         ]
       }}
@@ -411,7 +432,7 @@ export class AiService {
         visualElements: promptParts.elements,
         targetAudience: promptParts.audience,
         duration: 15, // Default 15 seconds for Instagram reels
-        aspectRatio: '9:16' as const, // Instagram reel format
+        aspectRatio: '16:9' as const, // Veo 3 supported format
       };
 
       console.log('🔍 AI Service Debug: Video request prepared:', videoRequest);
@@ -531,19 +552,24 @@ export class AiService {
           - Content Type: {postType}
           - Time Slot: {timeSlotLabel}
           - Posting Time: {postingTime}
+          - Content Tone: {timeSlotTone}
+          - Dimensions: {timeSlotDimensions}
+          - Voice Accent: {timeSlotVoiceAccent}
+          - Reel Duration: {timeSlotReelDuration}
 
           YOUR EXPERT TASK:
           Create engaging, high-quality Instagram content that maximizes engagement and aligns with the account's brand and posting strategy.
           
           CONTENT REQUIREMENTS:
           1. CAPTION: Create a compelling, engaging caption (max 2200 characters) that:
-             - Matches the account's tone and brand voice
+             - Matches the specific time slot tone: {timeSlotTone}
              - Incorporates relevant topics and keywords
              - Includes a clear call-to-action
              - Is optimized for the specific content type ({postType})
              - Considers the posting time and day context
+             - Uses the specified voice accent: {timeSlotVoiceAccent}
           
-          2. HASHTAGS: Generate 10-15 relevant hashtags that:
+          2. HASHTAGS: Generate maximum 5 relevant hashtags that:
              - Are popular but not oversaturated
              - Mix of broad and niche hashtags
              - Include trending and evergreen options
@@ -554,10 +580,11 @@ export class AiService {
           4. TONE: Ensure the content matches the account's established tone
           
           5. MEDIA DESCRIPTION: Create a detailed description of the visual content:
-             - For REEL: Describe the video concept, scenes, transitions, and visual effects
+             - For REEL: Describe the video concept, scenes, transitions, and visual effects (Duration: {timeSlotReelDuration} seconds)
              - For POST_WITH_IMAGE: Describe the image composition, colors, text overlays, and visual elements
              - For STORY: Describe the story format, interactive elements, and visual style
              - Consider the account's brand aesthetic and target audience
+             - Ensure content matches the specified dimensions: {timeSlotDimensions}
           
           6. MEDIA STYLE: Define the visual style and aesthetic:
              - Color palette and mood
@@ -584,7 +611,8 @@ export class AiService {
         inputVariables: [
           'currentDate', 'weekStart', 'postDate', 'dayOfWeek',
           'accountName', 'accountType', 'description', 'topics', 'tone',
-          'postType', 'timeSlotLabel', 'postingTime'
+          'postType', 'timeSlotLabel', 'postingTime',
+          'timeSlotTone', 'timeSlotDimensions', 'timeSlotVoiceAccent', 'timeSlotReelDuration'
         ],
       });
 
@@ -603,6 +631,10 @@ export class AiService {
           postType: timeSlot.postType,
           timeSlotLabel: timeSlot.label || `${timeSlot.startTime} ${this.getDayName(timeSlot.dayOfWeek)}`,
           postingTime: `${timeSlot.startTime} - ${timeSlot.endTime}`,
+          timeSlotTone: timeSlot.tone || account.tone || 'Professional and engaging',
+          timeSlotDimensions: timeSlot.dimensions || (timeSlot.postType === 'reel' ? '9:16' : timeSlot.postType === 'story' ? '9:16' : '1:1'),
+          timeSlotVoiceAccent: timeSlot.preferredVoiceAccent || 'american',
+          timeSlotReelDuration: timeSlot.reelDuration || (timeSlot.postType === 'reel' ? 16 : null),
         });
 
         // Extract and parse the JSON response
@@ -661,8 +693,8 @@ export class AiService {
                mood: promptParts.mood,
                visualElements: promptParts.elements,
                targetAudience: promptParts.audience,
-               duration: 15, // Default 15 seconds for Instagram reels
-               aspectRatio: '9:16' as const, // Instagram reel format
+               duration: timeSlot.reelDuration || 15, // Use time slot duration or default to 15 seconds
+               aspectRatio: '16:9' as const, // Veo 3 supported format
              };
 
              const result = await this.vertexAIMediaService.generateVideo(videoRequest);

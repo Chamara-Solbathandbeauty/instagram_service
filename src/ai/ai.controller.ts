@@ -12,9 +12,8 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
-import { AIAgentService } from './ai-agent.service';
-import { ContentAgentService } from './content-agent.service';
-import { MultiAgentContentService } from './services/multi-agent-content.service';
+import { ScheduleGeneratorService } from './schedule-generator.service';
+import { ContentGeneratorService } from './content-generator.service';
 import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -24,9 +23,8 @@ import { Repository } from 'typeorm';
 @UseGuards(JwtAuthGuard)
 export class AIController {
   constructor(
-    private readonly aiAgentService: AIAgentService,
-    private readonly contentAgentService: ContentAgentService,
-    private readonly multiAgentContentService: MultiAgentContentService,
+    private readonly scheduleGeneratorService: ScheduleGeneratorService,
+    private readonly contentGeneratorService: ContentGeneratorService,
     @InjectRepository(IgAccount)
     private igAccountRepository: Repository<IgAccount>,
   ) {}
@@ -50,7 +48,7 @@ export class AIController {
       }
 
       // Generate AI schedule
-      const aiSchedule = await this.aiAgentService.generateSchedule(account, body.userInstructions);
+      const aiSchedule = await this.scheduleGeneratorService.generateSchedule(account, body.userInstructions);
 
       return {
         success: true,
@@ -85,7 +83,7 @@ export class AIController {
       }
 
       // Generate AI schedule
-      const aiSchedule = await this.aiAgentService.generateSchedule(account);
+      const aiSchedule = await this.scheduleGeneratorService.generateSchedule(account);
 
       return {
         success: true,
@@ -107,13 +105,13 @@ export class AIController {
     @Body() body: { scheduleId: number; generationWeek?: string; userInstructions?: string },
   ) {
     try {
-      const generationWeek = body.generationWeek || await this.contentAgentService.getNextGeneratableWeek(body.scheduleId, user.id);
+      const generationWeek = body.generationWeek || await this.contentGeneratorService.getNextGeneratableWeek(body.scheduleId, user.id);
       
       if (!generationWeek) {
         throw new HttpException('No week available for content generation', HttpStatus.BAD_REQUEST);
       }
 
-      const result = await this.contentAgentService.generateContentForSchedule(
+      const result = await this.contentGeneratorService.generateContentForSchedule(
         body.scheduleId,
         user.id,
         generationWeek,
@@ -140,7 +138,7 @@ export class AIController {
     @Param('scheduleId', ParseIntPipe) scheduleId: number,
   ) {
     try {
-      const nextWeek = await this.contentAgentService.getNextGeneratableWeek(scheduleId, user.id);
+      const nextWeek = await this.contentGeneratorService.getNextGeneratableWeek(scheduleId, user.id);
       
       return {
         success: true,
@@ -167,34 +165,18 @@ export class AIController {
     },
   ) {
     try {
-      if (body.timeSlotId) {
-        // Generate content for specific time slot
-        const result = await this.multiAgentContentService.generateContentForTimeSlot(
-          body.scheduleId,
-          body.timeSlotId,
-          body.generationDate,
-          user.id
-        );
+      // Use ContentGeneratorService for both single time slot and full schedule generation
+      const result = await this.contentGeneratorService.generateContentForSchedule(
+        body.scheduleId,
+        user.id,
+        body.generationDate
+      );
 
-        return {
-          success: result.success,
-          data: result,
-          message: result.success ? 'Content generated successfully' : 'Failed to generate content',
-        };
-      } else {
-        // Generate content for entire schedule
-        const results = await this.multiAgentContentService.generateContentForSchedule(
-          body.scheduleId,
-          body.generationDate,
-          user.id
-        );
-
-        return {
-          success: results.some(r => r.success),
-          data: results,
-          message: `Generated content for ${results.filter(r => r.success).length} time slots`,
-        };
-      }
+      return {
+        success: true,
+        data: result,
+        message: result.message,
+      };
     } catch (error) {
       console.error('Error in generateContentMultiAgent:', error);
       throw new HttpException(

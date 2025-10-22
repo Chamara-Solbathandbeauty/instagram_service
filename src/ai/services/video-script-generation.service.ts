@@ -8,6 +8,14 @@ export interface SegmentScript {
   transitionCue?: string;
 }
 
+export interface TimeSlotContext {
+  label?: string;
+  tone?: string;
+  preferredVoiceAccent?: string;
+  dimensions?: string;
+  reelDuration?: number;
+}
+
 export interface ContentIdea {
   title: string;
   description: string;
@@ -45,11 +53,13 @@ export class VideoScriptGenerationService {
    * Generate a segmented script for extended video
    * @param contentIdea - Content idea with visual details
    * @param desiredDuration - Desired duration in seconds (8 or 30)
+   * @param timeSlotContext - Schedule time slot context (tone, voice accent, label)
    * @returns Array of segment scripts
    */
   async generateSegmentedScript(
     contentIdea: ContentIdea,
     desiredDuration: number,
+    timeSlotContext?: TimeSlotContext,
   ): Promise<SegmentScript[]> {
     // For 8-second videos, return single segment
     if (desiredDuration <= 8) {
@@ -57,13 +67,14 @@ export class VideoScriptGenerationService {
         {
           segmentNumber: 1,
           duration: 8,
-          prompt: this.buildSingleSegmentPrompt(contentIdea),
+          prompt: this.buildSingleSegmentPrompt(contentIdea, timeSlotContext),
         },
       ];
     }
 
-    // For 30-second videos, generate 4 segments
-    const segmentCount = Math.ceil(desiredDuration / 8); // 30s = 4 segments
+    // Calculate segments based on desired duration
+    const segmentCount = Math.ceil(desiredDuration / 8); // Each segment is 8 seconds
+    console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video`);
     
     // Build comprehensive character and setting details
     const characterDetails = contentIdea.character ? `
@@ -91,14 +102,23 @@ STORY STRUCTURE:
 - End: ${contentIdea.storyArc.end}
 ` : '';
 
-    const scriptPrompt = `You are an expert video script writer for Veo AI video generation with automatic visual continuity.
+    // Build time slot context information
+    const timeSlotInfo = timeSlotContext ? `
+SCHEDULE TIME SLOT REQUIREMENTS:
+- Label: ${timeSlotContext.label || 'General Content'}
+- Tone: ${timeSlotContext.tone || 'Professional and engaging'}
+- Voice Accent: ${timeSlotContext.preferredVoiceAccent || 'American'}
+- Dimensions: ${timeSlotContext.dimensions || '9:16 (vertical)'}
+- Duration: ${timeSlotContext.reelDuration || desiredDuration} seconds
+` : '';
 
-IMPORTANT: When extending videos, Veo 3 automatically analyzes the last frame of the previous segment and matches:
-- Camera position and movement
-- Lighting and time of day
-- Scene composition and colors
-- Character/object positions and states
-- Background music continuation
+    const scriptPrompt = `You are an expert video script writer for creating seamless 8-second video segments that flow together like a single continuous video.
+
+CRITICAL REQUIREMENTS FOR SMOOTH FLOW:
+- Each 8-second segment must feel like a natural continuation, not separate clips
+- Voiceover and music must flow continuously without pauses or gaps
+- Visual transitions must be smooth and natural
+- Story progression must feel organic and engaging
 
 TASK: Create a ${desiredDuration}-second video script divided into ${segmentCount} segments of 8 seconds each.
 
@@ -110,41 +130,74 @@ VIDEO CONCEPT:
 - Visual Elements: ${contentIdea.visualElements.join(', ')}
 - Target Audience: ${contentIdea.targetAudience}
 
+${timeSlotInfo}
+
 ${characterDetails}
 
 ${settingDetails}
 
 ${storyArcDetails}
 
-SCRIPT REQUIREMENTS:
+SCRIPT REQUIREMENTS FOR SEAMLESS FLOW:
 
-**SEGMENT 1 (Establishes Everything):**
-- Include COMPLETE visual description: exact character appearance, location, lighting, colors, camera angle, subjects, music
-- Establish the character's EXACT appearance: facial features, hair, clothing, body type, age
-- Establish the EXACT setting: background, lighting conditions, colors, atmosphere, time of day
-- Specify 9:16 vertical aspect ratio, professional video quality
-- This segment sets the visual baseline that ALL subsequent segments must maintain
-- Use the character and setting details provided above for consistency
+  **SEGMENT 1 (Strong Opening Hook - 0-8 seconds):**
+  - IMMEDIATE IMPACT: Start with a compelling visual hook in the first 2 seconds
+  - Establish character, setting, lighting, colors, camera style, music, voiceover tone
+  - Include specific details: exact character features, clothing, location, time of day, lighting conditions
+  - Set the audio baseline: music style, tempo, voiceover pace and tone
+  - Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio for optimal viewing
+  - Create engaging opening that hooks viewers immediately (0-2 seconds)
+  - Build momentum and establish story (2-6 seconds)
+  - Set up smooth transition to next segment (6-8 seconds)
+  - Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
+  - Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover
 
-**SEGMENTS 2-${segmentCount} (Maintain Visual Consistency):**
-- Focus on narrative progression while MAINTAINING EXACT visual consistency
-- Keep the SAME character appearance, background, lighting, colors, camera style
-- Describe what happens next while preserving all visual elements from Segment 1
-- Use phrases like "The same character continues...", "In the same setting...", "Maintaining the same lighting..."
-- DO NOT change any visual elements - only describe actions and story progression
-- Maintain 9:16 vertical aspect ratio and professional quality
+**SEGMENTS 2-${segmentCount} (Seamless Continuation):**
+- Continue the story naturally without visual or audio breaks
+- Maintain IDENTICAL character, setting, lighting, colors, music from Segment 1
+- Focus on smooth story progression and natural actions
+- Ensure voiceover flows continuously without pauses
+- Use transition phrases that connect segments: "As she continues...", "Meanwhile...", "Building on this..."
+- Each segment should feel like the next 8 seconds of the same video, not a new clip
+- Maintain the ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
+- Keep ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistency
 
-EXAMPLE (Correct Format):
+AUDIO FLOW REQUIREMENTS:
+- Voiceover must flow continuously across all segments
+- No pauses, gaps, or changes in voiceover tone between segments
+- Background music must maintain consistent tempo and style
+- Audio transitions must be imperceptible
+- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistently
+- Maintain ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
 
-Segment 1: "A 25-year-old woman with long brown hair, wearing a white summer dress, walks through a sunlit garden path at golden hour. The botanical garden features cobblestone paths lined with rose bushes and ancient oak trees. Warm amber lighting bathes the scene with soft shadows. Upbeat acoustic guitar music plays. Camera follows smoothly from behind as she walks forward with confident, graceful steps."
+VISUAL FLOW REQUIREMENTS:
+- Camera movements must feel natural and connected
+- Lighting and colors must remain consistent
+- Character appearance must be identical across all segments
+- Scene composition must flow smoothly
+- Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio consistently
 
-Segment 2: "She continues walking forward along the cobblestone path and pauses to look at a red rose. Camera moves to her side, capturing her gentle smile."
+${segmentCount > 2 ? `**FINAL SEGMENT (Powerful Closing - Last 8 seconds):**
+- STRONG FINISH: Create a compelling conclusion that leaves viewers satisfied
+- Build to a climax or key message in the first 4-6 seconds
+- End with a clear call-to-action or memorable closing statement (6-8 seconds)
+- Maintain visual and audio consistency with previous segments
+- Create a sense of completion and fulfillment
+- Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio for optimal viewing
+- Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
+- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover` : ''}
 
-Segment 3: "She carefully picks the rose and brings it to her nose, inhaling deeply with a contented expression. Camera slowly circles around to face her, showing her peaceful demeanor."
+EXAMPLE (Seamless Flow Format):
 
-Segment 4: "She continues walking forward down the path with the rose in hand, her white dress flowing gently. Camera pulls back slightly as she walks into the distance, the garden path stretching ahead."
+Segment 1: "A confident 25-year-old woman with long brown hair, wearing a white summer dress, walks through a sunlit botanical garden at golden hour. The cobblestone path is lined with vibrant rose bushes and ancient oak trees. Warm amber lighting creates soft shadows. Upbeat acoustic guitar music plays at 120 BPM. Camera follows smoothly from behind as she walks with confident, graceful steps. Voiceover begins: 'Every journey starts with a single step...'"
 
-Notice: Segment 1 has ALL visual details including character appearance and setting. Segments 2-4 only describe ACTIONS (Veo automatically maintains the character, garden, lighting, colors, music from segment 1).
+Segment 2: "She continues walking forward along the same cobblestone path, her white dress flowing gently in the breeze. Camera moves to her side, capturing her gentle smile as she notices a red rose. The same warm lighting and acoustic music continue seamlessly. Voiceover continues: '...and every step leads to new discoveries.'"
+
+Segment 3: "She carefully picks the red rose, bringing it to her nose with a contented expression. Camera slowly circles around to face her, showing her peaceful demeanor. The garden setting, lighting, and acoustic music remain unchanged. Voiceover flows: 'Sometimes the most beautiful moments are the simplest ones.'"
+
+Segment 4: "She continues walking forward down the path with the rose in hand, her white dress flowing gently. Camera pulls back slightly as she walks into the distance, the garden path stretching ahead. The scene maintains the same lighting, music, and atmosphere. Voiceover concludes: 'And every ending is just a new beginning.'"
+
+Notice: Each segment flows naturally into the next with continuous audio and visual consistency.
 
 Respond with ONLY valid JSON (no markdown, no explanations):
 {
@@ -152,22 +205,22 @@ Respond with ONLY valid JSON (no markdown, no explanations):
     {
       "segmentNumber": 1,
       "duration": 8,
-      "prompt": "Complete detailed description with character appearance, location, lighting, colors, camera, subjects, music, and initial action"
+      "prompt": "Complete setup with character, setting, lighting, music, and opening action. Include voiceover start."
     },
     {
       "segmentNumber": 2,
       "duration": 8,
-      "prompt": "Simple action description: what happens next (Veo auto-continues visuals)"
+      "prompt": "Seamless continuation with same character, setting, lighting, music. Natural story progression with continuous voiceover."
     },
     {
       "segmentNumber": 3,
       "duration": 8,
-      "prompt": "Simple action description: what happens next"
+      "prompt": "Seamless continuation with same character, setting, lighting, music. Build story momentum with continuous voiceover."
     },
     {
       "segmentNumber": 4,
       "duration": 8,
-      "prompt": "Simple action description: conclusion"
+      "prompt": "Seamless conclusion with same character, setting, lighting, music. Complete story arc with continuous voiceover."
     }
   ]
 }`;
@@ -190,18 +243,57 @@ Respond with ONLY valid JSON (no markdown, no explanations):
         throw new Error('Invalid script format returned');
       }
 
-      return parsed.segments as SegmentScript[];
+      // Transform the segments to ensure they have the correct structure
+      const transformedSegments = parsed.segments.map((segment: any, index: number) => {
+        let promptStr = '';
+        
+        // Ensure we have valid segmentNumber and duration
+        const segmentNumber = segment.segmentNumber || (index + 1);
+        const duration = segment.duration || 8;
+        
+        // If the segment has a complex structure with visuals and audio, combine them into a prompt
+        if (segment.visuals && segment.audio) {
+          const visuals = typeof segment.visuals === 'string' ? segment.visuals : JSON.stringify(segment.visuals || '');
+          const music = typeof segment.audio.music === 'string' ? segment.audio.music : JSON.stringify(segment.audio.music || '');
+          const voiceover = typeof segment.audio.voiceover === 'string' ? segment.audio.voiceover : JSON.stringify(segment.audio.voiceover || '');
+          promptStr = `${visuals}\n\nAudio: ${music}\nVoiceover: ${voiceover}`;
+        }
+        // If it already has a prompt field, use it
+        else if (segment.prompt) {
+          promptStr = typeof segment.prompt === 'string' ? segment.prompt : JSON.stringify(segment.prompt);
+        }
+        // Fallback: create a basic prompt
+        else {
+          promptStr = `Generate segment ${segmentNumber} for the video content.`;
+        }
+        
+        return {
+          segmentNumber: segmentNumber,
+          duration: duration,
+          prompt: promptStr
+        };
+      });
+
+      return transformedSegments as SegmentScript[];
     } catch (error) {
       console.error('Failed to generate segmented script:', error);
       // Fallback: generate simple sequential prompts
-      return this.generateFallbackScript(contentIdea, segmentCount);
+      return this.generateFallbackScript(contentIdea, segmentCount, desiredDuration);
     }
   }
 
   /**
    * Build a single segment prompt for 8-second videos
    */
-  private buildSingleSegmentPrompt(contentIdea: ContentIdea): string {
+  private buildSingleSegmentPrompt(contentIdea: ContentIdea, timeSlotContext?: TimeSlotContext): string {
+    const timeSlotInfo = timeSlotContext ? `
+Time Slot Requirements:
+- Label: ${timeSlotContext.label || 'General Content'}
+- Tone: ${timeSlotContext.tone || 'Professional and engaging'}
+- Voice Accent: ${timeSlotContext.preferredVoiceAccent || 'American'}
+- Dimensions: ${timeSlotContext.dimensions || '9:16 (vertical)'}
+` : '';
+
     return `Create a high-quality, engaging 8-second video with the following:
 
 Title: ${contentIdea.title}
@@ -211,13 +303,21 @@ Mood: ${contentIdea.mood}
 Visual Elements: ${contentIdea.visualElements.join(', ')}
 Target Audience: ${contentIdea.targetAudience}
 
+${timeSlotInfo}
+
 Requirements:
 - High resolution and smooth motion
 - Professional cinematography
 - Engaging visual storytelling
 - Suitable for social media (Instagram Reels/Stories)
 - Clear and focused narrative
-- Excellent lighting and composition`;
+- Excellent lighting and composition
+- Strong opening hook (0-2 seconds)
+- Smooth middle development (2-6 seconds)
+- Satisfying conclusion (6-8 seconds)
+- Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
+- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover
+- Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio`;
   }
 
   /**
@@ -226,8 +326,12 @@ Requirements:
   private generateFallbackScript(
     contentIdea: ContentIdea,
     segmentCount: number,
+    desiredDuration?: number,
   ): SegmentScript[] {
     const segments: SegmentScript[] = [];
+
+    // Calculate segment duration based on desired duration
+    const segmentDuration = desiredDuration ? Math.ceil(desiredDuration / segmentCount) : 8;
 
     // Build character and setting details for fallback
     const characterDesc = contentIdea.character 
@@ -243,8 +347,8 @@ Requirements:
     
     segments.push({
       segmentNumber: 1,
-      duration: 8,
-      prompt: `${characterDesc} in ${settingDesc} ${basePrompt} Professional cinematography with smooth camera movements. Establish character appearance, location, lighting, and composition.`,
+      duration: segmentDuration,
+      prompt: `${characterDesc} in ${settingDesc} ${basePrompt} Professional cinematography with smooth camera movements. Start with a compelling visual hook (0-2 seconds), establish character appearance, location, lighting, and composition (2-6 seconds), and build momentum for the next segment (6-8 seconds).`,
     });
 
     // Segments 2+: Simple action progressions (Veo auto-continues visuals)
@@ -255,10 +359,15 @@ Requirements:
     ];
 
     for (let i = 1; i < segmentCount; i++) {
+      const isLastSegment = i === segmentCount - 1;
+      const action = isLastSegment 
+        ? 'Build to a compelling climax or key message (0-4 seconds), then conclude with a satisfying ending or call-to-action (4-8 seconds).'
+        : narrativeActions[i - 1] || 'Continue the narrative naturally.';
+      
       segments.push({
         segmentNumber: i + 1,
-        duration: 8,
-        prompt: narrativeActions[i - 1] || 'Continue the narrative naturally.',
+        duration: segmentDuration,
+        prompt: action,
       });
     }
 

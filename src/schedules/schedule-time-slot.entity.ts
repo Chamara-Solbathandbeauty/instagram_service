@@ -43,6 +43,21 @@ export class ScheduleTimeSlot {
   @Column({ type: 'text', nullable: true })
   label: string; // e.g., "Morning Posts", "Evening Stories"
 
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  tone: string; // e.g., "professional", "casual", "friendly", "authoritative"
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  dimensions: string; // e.g., "1:1", "9:16", "4:5", "16:9"
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  preferredVoiceAccent: string; // e.g., "american", "british", "australian", "neutral"
+
+  @Column({ type: 'int', nullable: true })
+  reelDuration: number; // Duration in seconds: 8, 16, 24, 32
+
+  @Column({ type: 'varchar', length: 20, nullable: true, default: 'video' })
+  storyType: string; // 'image' or 'video' - only for story post types
+
   @OneToMany(() => ScheduleContent, scheduleContent => scheduleContent.timeSlot, { cascade: true })
   scheduleContent: ScheduleContent[];
 

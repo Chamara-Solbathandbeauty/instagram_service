@@ -10,12 +10,16 @@ export const TimeSlotSchema = z.object({
   postType: z.nativeEnum(PostType).describe("Type of content to post: post_with_image, reel, or story"),
   isEnabled: z.boolean().default(true).describe("Whether this time slot is enabled"),
   label: z.string().optional().describe("Optional label for this time slot (e.g., 'Morning Posts', 'Evening Stories')"),
+  tone: z.string().optional().describe("Content tone: free text describing the desired tone (e.g., 'professional', 'casual and friendly', 'authoritative and confident')"),
+  dimensions: z.string().optional().describe("Content dimensions: 1:1, 9:16, 4:5, 16:9"),
+  preferredVoiceAccent: z.string().optional().describe("Preferred voice accent: american, british, australian, neutral, canadian"),
+  reelDuration: z.number().optional().describe("Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"),
 });
 
 // Main Schedule Schema
 export const AIGeneratedScheduleSchema = z.object({
   name: z.string().min(1).max(100).describe("Descriptive name for the posting schedule"),
-  description: z.string().min(10).max(500).describe("Detailed description of the schedule strategy and goals"),
+  description: z.string().min(10).max(3000).describe("Detailed description of the schedule strategy and goals"),
   frequency: z.nativeEnum(ScheduleFrequency).describe("Posting frequency: daily, weekly, or custom"),
   status: z.nativeEnum(ScheduleStatus).default(ScheduleStatus.ACTIVE).describe("Schedule status: active, paused, or inactive"),
   isEnabled: z.boolean().default(true).describe("Whether the schedule is enabled"),
@@ -44,7 +48,7 @@ export const scheduleJsonSchema = {
       type: "string",
       description: "Detailed description of the schedule strategy and goals",
       minLength: 10,
-      maxLength: 500
+      maxLength: 3000
     },
     frequency: {
       type: "string",
@@ -120,6 +124,22 @@ export const scheduleJsonSchema = {
           label: {
             type: "string",
             description: "Optional label for this time slot (e.g., 'Morning Posts', 'Evening Stories')"
+          },
+          tone: {
+            type: "string",
+            description: "Content tone: free text describing the desired tone (e.g., 'professional', 'casual and friendly', 'authoritative and confident')"
+          },
+          dimensions: {
+            type: "string",
+            description: "Content dimensions: 1:1, 9:16, 4:5, 16:9"
+          },
+          preferredVoiceAccent: {
+            type: "string",
+            description: "Preferred voice accent: american, british, australian, neutral, canadian"
+          },
+          reelDuration: {
+            type: "number",
+            description: "Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"
           }
         },
         required: ["startTime", "endTime", "dayOfWeek", "postType", "isEnabled"]

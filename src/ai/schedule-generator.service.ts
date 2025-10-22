@@ -5,7 +5,7 @@ import { AIGeneratedSchedule, AIGeneratedScheduleSchema, scheduleJsonSchema } fr
 import { LLMService } from './services/llm.service';
 
 @Injectable()
-export class AIAgentService {
+export class ScheduleGeneratorService {
   private schedulePrompt: PromptTemplate;
 
   constructor(private llmService: LLMService) {
@@ -41,6 +41,10 @@ Hard Requirements (must follow):
    - startTime/endTime in HH:MM:SS (24h) and non-overlapping within the same day
    - postType ∈ (post_with_image, reel, story) - choose based on account type and optimal timing
    - label: descriptive name (e.g., "Morning Posts", "Evening Stories")
+   - tone: content tone (free text describing the desired tone, e.g., "professional", "casual and friendly", "authoritative and confident") - match account type
+   - dimensions: content format (1:1 for posts, 9:16 for reels/stories, 4:5 for Instagram posts, 16:9 for landscape)
+   - preferredVoiceAccent: voice accent for audio content (american, british, australian, neutral, canadian)
+   - reelDuration: duration in seconds (8, 16, 24, 32) - ONLY for reel postType, omit for others
    - Favor windows typical for audience (examples):
      • business: weekdays 09:00:00–12:00:00 or 13:00:00–17:00:00 (post_with_image)
      • creator: weekdays 18:00:00–21:00:00; weekends late morning/afternoon (reel)
@@ -61,7 +65,7 @@ User Instructions:
 Return only the structured schedule fields (the model will format as JSON via a schema).
 Include:
 - name: short, specific (e.g., "Q{currentMonth} {accountType} Growth Plan")
-- description: 2–3 sentences explaining cadence, content mix, and timing rationale
+- description: 2–3 sentences explaining cadence, content mix, and timing rationale (keep under 3000 characters)
 - frequency, status, isEnabled, startDate, endDate, timezone
 - timeSlots (7–14) covering the week without overlaps, each with postType and label
 `);

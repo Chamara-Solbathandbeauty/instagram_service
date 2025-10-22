@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Content, ContentType, ContentStatus } from './entities/content.entity';
 import { Media } from './media.entity';
 import { VideoSegment } from '../ai/entities/video-segment.entity';
@@ -344,7 +344,7 @@ export class ContentService {
           visualElements: ['high quality', 'social media optimized'],
           targetAudience: 'general',
           duration: 15,
-          aspectRatio: '9:16' as const,
+          aspectRatio: '16:9' as const, // Veo 3 supported format
         };
         
         const videoResult = await this.vertexAiMediaService.generateVideo(videoRequest);
@@ -396,6 +396,7 @@ export class ContentService {
     contentIdea: ContentIdea,
     desiredDuration: number,
     userId: string,
+    aspectRatio?: '16:9' | '9:16',
   ): Promise<Media> {
     // Verify content exists and user owns it
     const content = await this.findOne(contentId, userId);
@@ -418,6 +419,7 @@ export class ContentService {
         contentId,
         contentIdea,
         desiredDuration,
+        aspectRatio,
       );
 
       return media;
@@ -454,6 +456,109 @@ export class ContentService {
     const publishedMedia = await this.publishedMediaService.findByContent(contentId);
     console.log('📊 ContentService: Found published media:', publishedMedia);
     return publishedMedia;
+  }
+
+  /**
+   * Bulk update status for multiple content items
+   */
+  async bulkUpdateStatus(contentIds: number[], status: string, userId: string): Promise<{ updated: number; message: string }> {
+    console.log('🔧 ContentService: bulkUpdateStatus called with:', { contentIds, status, userId });
+    
+    if (!contentIds || contentIds.length === 0) {
+      throw new BadRequestException('Content IDs are required');
+    }
+
+    if (!status) {
+      throw new BadRequestException('Status is required');
+    }
+
+    // Map lowercase status to uppercase ContentStatus
+    const statusMap: Record<string, ContentStatus> = {
+      'pending': ContentStatus.PENDING,
+      'approved': ContentStatus.APPROVED,
+      'rejected': ContentStatus.REJECTED,
+      'published': ContentStatus.PUBLISHED,
+    };
+
+    const mappedStatus = statusMap[status.toLowerCase()];
+    if (!mappedStatus) {
+      throw new BadRequestException(`Invalid status: ${status}. Valid statuses are: pending, approved, rejected, published`);
+    }
+
+    try {
+      // Verify all content exists and user owns them
+      const contents = await this.contentRepository.find({
+        where: { id: In(contentIds) },
+        relations: ['account'],
+      });
+
+      if (contents.length !== contentIds.length) {
+        throw new BadRequestException('Some content items not found');
+      }
+
+      // Verify user owns all accounts
+      for (const content of contents) {
+        if (content.account.userId !== userId) {
+          throw new ForbiddenException('You do not have permission to update this content');
+        }
+      }
+
+      // Update all content status
+      await this.contentRepository.update(contentIds, { status: mappedStatus });
+
+      console.log(`✅ Bulk updated ${contentIds.length} content items to status: ${status}`);
+      
+      return {
+        updated: contentIds.length,
+        message: `Successfully updated ${contentIds.length} content items to "${status}" status`,
+      };
+    } catch (error) {
+      console.error('❌ Failed to bulk update content status:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk delete multiple content items
+   */
+  async bulkDelete(contentIds: number[], userId: string): Promise<{ deleted: number; message: string }> {
+    console.log('🔧 ContentService: bulkDelete called with:', { contentIds, userId });
+    
+    if (!contentIds || contentIds.length === 0) {
+      throw new BadRequestException('Content IDs are required');
+    }
+
+    try {
+      // Verify all content exists and user owns them
+      const contents = await this.contentRepository.find({
+        where: { id: In(contentIds) },
+        relations: ['account'],
+      });
+
+      if (contents.length !== contentIds.length) {
+        throw new BadRequestException('Some content items not found');
+      }
+
+      // Verify user owns all accounts
+      for (const content of contents) {
+        if (content.account.userId !== userId) {
+          throw new ForbiddenException('You do not have permission to delete this content');
+        }
+      }
+
+      // Delete all content items
+      await this.contentRepository.delete(contentIds);
+
+      console.log(`✅ Bulk deleted ${contentIds.length} content items`);
+      
+      return {
+        deleted: contentIds.length,
+        message: `Successfully deleted ${contentIds.length} content items`,
+      };
+    } catch (error) {
+      console.error('❌ Failed to bulk delete content:', error);
+      throw error;
+    }
   }
 
 }

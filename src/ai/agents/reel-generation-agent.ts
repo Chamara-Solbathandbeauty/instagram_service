@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { MediaStorageService } from '../services/media-storage.service';
 import { VertexAIMediaService } from '../services/vertex-ai-media.service';
 import { ExtendedVideoGenerationService } from '../services/extended-video-generation.service';
+import { PromptBuilderService } from '../services/prompt-builder.service';
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
 import { ScheduleTimeSlot } from '../../schedules/schedule-time-slot.entity';
@@ -41,6 +42,7 @@ export class ReelGenerationAgent {
     private mediaStorageService: MediaStorageService,
     private vertexAiMediaService: VertexAIMediaService,
     private extendedVideoService: ExtendedVideoGenerationService,
+    private promptBuilderService: PromptBuilderService,
   ) {}
 
   async generateContent(
@@ -58,7 +60,8 @@ export class ReelGenerationAgent {
     },
     caption: string,
     hashtags: string[],
-    contentId?: number  // Accept contentId from ContentAgentService
+    contentId?: number,  // Accept contentId from ContentAgentService
+    contentType?: 'reel' | 'story'  // Content type for concatenation method selection
   ): Promise<ReelContentResult> {
     try {
       console.log('🎬 Starting 30s reel generation with extended video service');
@@ -74,8 +77,8 @@ export class ReelGenerationAgent {
           usedTopics: contentIdea.title,
           tone: contentIdea.mood,
           type: ContentType.REEL,
-          status: ContentStatus.GENERATED,
-          desiredDuration: 30,
+          status: ContentStatus.PENDING,
+          desiredDuration: timeSlot.reelDuration || 16, // Use time slot duration or default to 16s
           isExtendedVideo: true,
         });
 
@@ -85,7 +88,7 @@ export class ReelGenerationAgent {
       } else {
         // Update existing content with extended video settings
         await this.contentRepository.update(savedContentId, {
-          desiredDuration: 30,
+          desiredDuration: timeSlot.reelDuration || 16, // Use time slot duration or default to 16s
           isExtendedVideo: true,
         });
         console.log(`✅ Using existing content ID: ${savedContentId}`);
@@ -94,12 +97,43 @@ export class ReelGenerationAgent {
       // Enhance content idea with detailed character and setting information
       const enhancedContentIdea = this.enhanceContentIdea(contentIdea);
 
-      // Generate 30-second video using Extended Video Generation Service
-      console.log(`🎥 Generating 30s video for content ${savedContentId}`);
+      // Generate extended video using desired duration from time slot
+      const desiredDuration = timeSlot.reelDuration || 16; // default to 16s if not set
+      console.log(`🎥 Generating ${desiredDuration}s video for content ${savedContentId}`);
+      console.log(`📐 Time slot dimensions: "${timeSlot.dimensions}"`);
+      
+      // Validate and fix aspect ratio if needed
+      let aspectRatio: '16:9' | '9:16' = '9:16'; // Default to portrait
+      if (timeSlot.dimensions === '16:9') {
+        aspectRatio = '16:9';
+      } else if (timeSlot.dimensions === '9:16') {
+        aspectRatio = '9:16';
+      } else if (timeSlot.dimensions === '6:19') {
+        // Fix corrupted data - 6:19 should be 9:16
+        console.log(`⚠️  Fixing corrupted aspect ratio: ${timeSlot.dimensions} → 9:16`);
+        aspectRatio = '9:16';
+      } else {
+        console.log(`⚠️  Unknown aspect ratio: ${timeSlot.dimensions}, using default: 9:16`);
+      }
+      
+      console.log(`📐 Using aspect ratio: ${aspectRatio}`);
+      
+      // Extract time slot context for script generation
+      const timeSlotContext = {
+        label: timeSlot.label,
+        tone: timeSlot.tone,
+        preferredVoiceAccent: timeSlot.preferredVoiceAccent,
+        dimensions: timeSlot.dimensions,
+        reelDuration: timeSlot.reelDuration,
+      };
+      
       const media = await this.extendedVideoService.generateExtendedVideo(
         savedContentId,
         enhancedContentIdea,
-        30, // Generate 30-second video
+        desiredDuration,
+        aspectRatio,
+        contentType || 'reel', // Use passed contentType or default to 'reel'
+        timeSlotContext
       );
 
       console.log(`✅ Extended video generation completed for content ${savedContentId}`);
@@ -114,7 +148,7 @@ export class ReelGenerationAgent {
           fileName: media.fileName,
           fileSize: media.fileSize,
           mimeType: media.mimeType,
-          duration: 30, // 30-second video
+          duration: desiredDuration,
         },
       };
     } catch (error) {
@@ -242,27 +276,16 @@ export class ReelGenerationAgent {
     return 'Strong conclusion with a call-to-action or inspiring takeaway that motivates the viewer';
   }
 
-  private createMediaPrompt(contentIdea: any): string {
-    const elementsText = contentIdea.visualElements.join(', ');
-    
-    return `Create a short video (reel) for Instagram content. 
-Content Description: ${contentIdea.description}. 
-Visual Style: ${contentIdea.style}. 
-Mood: ${contentIdea.mood}. 
-Key Elements to Include: ${elementsText}. 
-Target Audience: ${contentIdea.targetAudience}. 
-Requirements: Dynamic, engaging short video (15-30 seconds) with smooth transitions, modern editing, high visual appeal, optimized for mobile viewing and Instagram's vertical format.`;
-  }
 
-  private async generateVideo(contentIdea: any): Promise<any> {
+  private async generateVideo(contentIdea: any, timeSlot?: any): Promise<any> {
     const request = {
       prompt: contentIdea.description,
       style: contentIdea.style,
       mood: contentIdea.mood,
       visualElements: contentIdea.visualElements,
       targetAudience: contentIdea.targetAudience,
-      duration: 15,
-      aspectRatio: '9:16' as const,
+      duration: timeSlot?.reelDuration || 15,
+      aspectRatio: '16:9' as const, // Veo 3 only supports 16:9 aspect ratio
     };
     
     // Generate video using Vertex AI

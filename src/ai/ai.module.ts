@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AIAgentService } from './ai-agent.service';
-import { ContentAgentService } from './content-agent.service';
+import { ScheduleGeneratorService } from './schedule-generator.service';
+import { ContentGeneratorService } from './content-generator.service';
 import { AIController } from './ai.controller';
 import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../schedules/posting-schedule.entity';
@@ -16,8 +16,9 @@ import { ImageGenerationAgent } from './agents/image-generation-agent';
 import { ReelGenerationAgent } from './agents/reel-generation-agent';
 import { MediaStorageService } from './services/media-storage.service';
 import { VertexAIMediaService } from './services/vertex-ai-media.service';
-import { MultiAgentContentService } from './services/multi-agent-content.service';
 import { LLMService } from './services/llm.service';
+import { PromptBuilderService } from './services/prompt-builder.service';
+import { AILoggerService } from './services/ai-logger.service';
 
 // Extended Video Services
 import { GcsStorageService } from './services/gcs-storage.service';
@@ -39,13 +40,14 @@ import { ExtendedVideoGenerationService } from './services/extended-video-genera
   ],
   providers: [
     LLMService,
-    AIAgentService, 
-    ContentAgentService,
+    PromptBuilderService,
+    AILoggerService,
+    ScheduleGeneratorService, 
+    ContentGeneratorService,
     ImageGenerationAgent,
     ReelGenerationAgent,
     MediaStorageService,
     VertexAIMediaService,
-    MultiAgentContentService,
     // Extended Video Services
     GcsStorageService,
     VideoScriptGenerationService,
@@ -54,9 +56,8 @@ import { ExtendedVideoGenerationService } from './services/extended-video-genera
   ],
   controllers: [AIController],
   exports: [
-    AIAgentService, 
-    ContentAgentService,
-    MultiAgentContentService,
+    ScheduleGeneratorService, 
+    ContentGeneratorService,
     MediaStorageService,
     ExtendedVideoGenerationService,
   ],

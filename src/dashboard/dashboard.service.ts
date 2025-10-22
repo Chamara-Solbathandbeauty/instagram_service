@@ -44,11 +44,11 @@ export class DashboardService {
         .andWhere('content.status = :status', { status: 'published' })
         .getCount();
 
-      const queuedContent = await this.contentRepository
+      const pendingContent = await this.contentRepository
         .createQueryBuilder('content')
         .leftJoin('content.account', 'account')
         .where('account.userId = :userId', { userId })
-        .andWhere('content.status = :status', { status: 'queued' })
+        .andWhere('content.status = :status', { status: 'pending' })
         .getCount();
 
       // Get schedule statistics
@@ -94,7 +94,7 @@ export class DashboardService {
         content: {
           total: totalContent,
           published: publishedContent,
-          queued: queuedContent,
+          pending: pendingContent,
           recent: recentContent,
         },
         schedules: {

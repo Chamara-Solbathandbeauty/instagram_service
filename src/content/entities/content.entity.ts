@@ -23,10 +23,10 @@ export const ContentType = {
 export type ContentType = typeof ContentType[keyof typeof ContentType];
 
 export const ContentStatus = {
-  GENERATED: 'generated',
-  PUBLISHED: 'published',
+  PENDING: 'pending',
+  APPROVED: 'approved',
   REJECTED: 'rejected',
-  QUEUED: 'queued',
+  PUBLISHED: 'published',
 } as const;
 
 export type ContentStatus = typeof ContentStatus[keyof typeof ContentStatus];
@@ -61,7 +61,7 @@ export class Content {
   @Column({
     type: 'enum',
     enum: ContentStatus,
-    default: ContentStatus.GENERATED,
+    default: ContentStatus.PENDING,
   })
   status: ContentStatus;
 

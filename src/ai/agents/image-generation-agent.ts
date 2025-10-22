@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MediaStorageService } from '../services/media-storage.service';
 import { VertexAIMediaService } from '../services/vertex-ai-media.service';
+import { PromptBuilderService } from '../services/prompt-builder.service';
 
 import { IgAccount } from '../../ig-accounts/entities/ig-account.entity';
 import { PostingSchedule } from '../../schedules/posting-schedule.entity';
@@ -38,6 +39,7 @@ export class ImageGenerationAgent {
     private mediaRepository: Repository<Media>,
     private mediaStorageService: MediaStorageService,
     private vertexAiMediaService: VertexAIMediaService,
+    private promptBuilderService: PromptBuilderService,
   ) {}
 
   async generateContent(
@@ -58,14 +60,20 @@ export class ImageGenerationAgent {
   ): Promise<ImageContentResult> {
     try {
       // 1. Generate image using Vertex AI
-      const imageGenerationResult = await this.generateImage(contentIdea);
+      const imageGenerationResult = await this.generateImage(contentIdea, timeSlot);
 
       if (!imageGenerationResult.success) {
         throw new Error(`Image generation failed: ${imageGenerationResult.error}`);
       }
 
       // 2. Create prompt for media generation
-      const mediaPrompt = this.createMediaPrompt(contentIdea);
+      const mediaPrompt = this.promptBuilderService.buildMediaPrompt(
+        contentIdea.description,
+        contentIdea.style,
+        contentIdea.visualElements,
+        'POST_WITH_IMAGE',
+        account
+      );
 
       // 3. Save media file and create media record (content will be created by ContentAgentService)
       const media = await this.mediaStorageService.saveMediaFile(
@@ -93,26 +101,20 @@ export class ImageGenerationAgent {
     }
   }
 
-  private createMediaPrompt(contentIdea: any): string {
-    const elementsText = contentIdea.visualElements.join(', ');
-    
-    return `Create an image for Instagram content. 
-Content Description: ${contentIdea.description}. 
-Visual Style: ${contentIdea.style}. 
-Mood: ${contentIdea.mood}. 
-Key Elements to Include: ${elementsText}. 
-Target Audience: ${contentIdea.targetAudience}. 
-Requirements: High-quality, professional composition, visually appealing, suitable for social media content.`;
-  }
 
-  private async generateImage(contentIdea: any): Promise<any> {
-    const request = {
+  private async generateImage(contentIdea: any, timeSlot?: ScheduleTimeSlot): Promise<any> {
+    const request: any = {
       prompt: contentIdea.description,
       style: contentIdea.style,
       mood: contentIdea.mood,
       visualElements: contentIdea.visualElements,
       targetAudience: contentIdea.targetAudience,
     };
+    
+    // For story images, use 9:16 aspect ratio (story format)
+    if (timeSlot?.postType === 'story') {
+      request.aspectRatio = '9:16';
+    }
     
     // Generate image using Vertex AI
     return await this.vertexAiMediaService.generateImage(request);

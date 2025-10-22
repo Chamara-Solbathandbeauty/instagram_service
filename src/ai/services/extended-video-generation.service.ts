@@ -33,12 +33,16 @@ export class ExtendedVideoGenerationService {
    * @param contentId - Content ID
    * @param contentIdea - Content idea with visual details
    * @param desiredDuration - Desired duration (8 or 30 seconds)
+   * @param timeSlotContext - Schedule time slot context (tone, voice accent, label)
    * @returns Media record of the final video
    */
   async generateExtendedVideo(
     contentId: number,
     contentIdea: ContentIdea,
     desiredDuration: number,
+    aspectRatio?: '16:9' | '9:16',
+    contentType?: 'reel' | 'story',
+    timeSlotContext?: any,
   ): Promise<Media> {
     try {
       console.log(`🎬 Starting extended video generation for content ${contentId}, duration: ${desiredDuration}s`);
@@ -48,11 +52,20 @@ export class ExtendedVideoGenerationService {
       const segments = await this.videoScriptService.generateSegmentedScript(
         contentIdea,
         desiredDuration,
+        timeSlotContext,
       );
 
       console.log(`📝 Generated ${segments.length} segment scripts`);
       segments.forEach((seg, idx) => {
-        console.log(`  Segment ${idx + 1}: ${seg.prompt?.substring(0, 100)}...`);
+        const promptStr = typeof seg.prompt === 'string' ? seg.prompt : String(seg.prompt || '');
+        console.log(`  Segment ${idx + 1}:`, {
+          segmentNumber: seg.segmentNumber,
+          duration: seg.duration,
+          hasPrompt: !!seg.prompt,
+          promptType: typeof seg.prompt,
+          promptLength: promptStr.length,
+          promptPreview: promptStr.substring(0, 100) || 'NO PROMPT'
+        });
       });
 
       // 2. Update content with script and settings
@@ -70,10 +83,11 @@ export class ExtendedVideoGenerationService {
       const baseSeed = Math.abs(contentId * 1000000) % 4294967295;
       const consistentSeed = baseSeed;
       console.log(`🎲 Using consistent seed ${consistentSeed} for all ${segments.length} segments (based on contentId: ${contentId})`);
+      console.log(`📊 Video duration: ${desiredDuration}s, Segments: ${segments.length}, Duration per segment: 8s`);
 
       // 5. Generate segments sequentially
       for (const segment of videoSegments) {
-        await this.generateSegment(segment, videoSegments, consistentSeed);
+        await this.generateSegment(segment, videoSegments, consistentSeed, aspectRatio);
       }
 
       // 6. Check all segments are completed
@@ -92,12 +106,24 @@ export class ExtendedVideoGenerationService {
         completedSegments.map(seg => this.gcsStorageService.downloadSegment(seg.gcsUri)),
       );
 
-      // 8. Concatenate segments
-      console.log(`🎬 Concatenating ${segmentBuffers.length} segments`);
-      const finalVideoBuffer = await this.videoConcatService.concatenateSegments(
-        segmentBuffers,
-        contentId,
-      );
+      // 8. Concatenate segments with seamless flow
+      console.log(`🎬 Concatenating ${segmentBuffers.length} segments with seamless flow`);
+      
+      // Use story-specific concatenation for story videos, regular concatenation for reels
+      let finalVideoBuffer: Buffer;
+      if (contentType === 'story') {
+        console.log(`📱 Using ultra-smooth audio story concatenation for story video`);
+        finalVideoBuffer = await this.videoConcatService.concatenateStoryWithSmoothAudio(
+          segmentBuffers,
+          contentId,
+        );
+      } else {
+        console.log(`🎬 Using regular seamless concatenation for reel video`);
+        finalVideoBuffer = await this.videoConcatService.concatenateSegments(
+          segmentBuffers,
+          contentId,
+        );
+      }
 
       // 9. Save final video to local storage
       const fileName = `content_${contentId}_${desiredDuration}s_${Date.now()}.mp4`;
@@ -149,10 +175,31 @@ export class ExtendedVideoGenerationService {
     const videoSegments: VideoSegment[] = [];
 
     for (const segment of segments) {
+      // Ensure we have valid required fields
+      if (!segment.segmentNumber) {
+        console.error(`❌ Segment is missing segmentNumber:`, segment);
+        throw new Error(`Segment is missing required segmentNumber field`);
+      }
+      
+      if (!segment.duration) {
+        console.error(`❌ Segment ${segment.segmentNumber} is missing duration:`, segment);
+        throw new Error(`Segment ${segment.segmentNumber} is missing required duration field`);
+      }
+      
+      // Ensure we have a valid prompt and convert to string if needed
+      const promptStr = typeof segment.prompt === 'string' ? segment.prompt : String(segment.prompt || '');
+      
+      if (!promptStr || promptStr.trim() === '') {
+        console.error(`❌ Segment ${segment.segmentNumber} has no valid prompt:`, segment);
+        throw new Error(`Segment ${segment.segmentNumber} is missing required prompt field`);
+      }
+
+      console.log(`📝 Creating video segment ${segment.segmentNumber} with prompt length: ${promptStr.length}`);
+
       const videoSegment = this.videoSegmentRepository.create({
         contentId,
         segmentNumber: segment.segmentNumber,
-        prompt: segment.prompt,
+        prompt: promptStr,
         duration: segment.duration,
         status: VideoSegmentStatus.PENDING,
       });
@@ -171,6 +218,7 @@ export class ExtendedVideoGenerationService {
     segment: VideoSegment,
     allSegments: VideoSegment[],
     seed: number,
+    aspectRatio?: '16:9' | '9:16',
   ): Promise<void> {
     try {
       console.log(`🎥 Generating segment ${segment.segmentNumber} for content ${segment.contentId}`);
@@ -268,8 +316,8 @@ export class ExtendedVideoGenerationService {
         mood: 'engaging',
         visualElements: [],
         targetAudience: 'social media',
-        duration: 8,
-        aspectRatio: '9:16',
+        duration: segment.duration, // Use actual segment duration
+        aspectRatio: aspectRatio || '16:9', // Use passed aspectRatio or default to 16:9
         // Use only reference image for continuation segments (not both inputVideo and referenceImage)
         referenceImageGcsUri: segment.segmentNumber > 1 ? referenceImageGcsUri : undefined,
         seed, // Consistent seed for all segments
@@ -288,8 +336,8 @@ export class ExtendedVideoGenerationService {
             mood: 'engaging',
             visualElements: [],
             targetAudience: 'social media',
-            duration: 8,
-            aspectRatio: '9:16',
+            duration: segment.duration, // Use actual segment duration
+            aspectRatio: aspectRatio || '16:9', // Use passed aspectRatio or default to 16:9
             // Use only reference image for continuation segments (not both inputVideo and referenceImage)
             referenceImageGcsUri: segment.segmentNumber > 1 ? referenceImageGcsUri : undefined,
             seed, // Keep same seed for retry
@@ -471,29 +519,39 @@ export class ExtendedVideoGenerationService {
         * Build contextual prompt for the first segment with complete narrative overview
         */
        private buildFirstSegmentPrompt(segment: VideoSegment, allSegments: VideoSegment[]): string {
-         return `Generate an 8-second video segment in English only.
+         return `Generate an 8-second video segment that establishes the complete visual and audio foundation for seamless video flow.
 
 CONTENT: ${segment.prompt}
 
-CRITICAL VISUAL ESTABLISHMENT REQUIREMENTS:
-- High quality, professional video
-- 9:16 aspect ratio (vertical)
-- Smooth camera movements
-- Clear, well-lit scene
+CRITICAL FOUNDATION REQUIREMENTS:
+- High quality, professional video optimized for social media
+- 9:16 vertical aspect ratio for mobile viewing
+- Smooth, natural camera movements
+- Clear, well-lit scene with professional cinematography
 - English language only (no text overlays in other languages)
-- Suitable for social media (Instagram Reels/Stories)
-- Establish COMPLETE visual baseline for all subsequent segments
+- Engaging opening that hooks viewers immediately
 
-VISUAL BASELINE REQUIREMENTS:
-- Establish EXACT character appearance (facial features, hair, clothing, body type)
-- Establish EXACT setting/background (location, objects, colors, atmosphere)
-- Establish EXACT lighting conditions (brightness, shadows, colors, time of day)
-- Establish EXACT camera style (angles, movement, framing)
-- Establish EXACT color palette (tones, saturation, contrast)
-- Establish EXACT music style (tempo, mood, instruments)
+VISUAL FOUNDATION REQUIREMENTS:
+- Establish EXACT character appearance (facial features, hair, clothing, body type, age)
+- Establish EXACT setting/background (location, objects, colors, atmosphere, time of day)
+- Establish EXACT lighting conditions (brightness, shadows, colors, mood)
+- Establish EXACT camera style (angles, movement patterns, framing)
+- Establish EXACT color palette (tones, saturation, contrast, mood)
 - Establish EXACT video quality and aspect ratio
 
-This is segment 1 of ${allSegments.length} segments that will be combined into a longer video. All subsequent segments must maintain IDENTICAL visual characteristics established in this first segment.`;
+AUDIO FOUNDATION REQUIREMENTS:
+- Establish EXACT music style (genre, tempo, mood, instruments)
+- Establish EXACT voiceover tone and pace (if applicable)
+- Set the audio baseline that all subsequent segments will maintain
+- Ensure audio is engaging and appropriate for the content
+
+STORY FOUNDATION REQUIREMENTS:
+- Create an engaging opening that draws viewers in
+- Establish the story's tone and energy level
+- Set up the narrative that will continue through all segments
+- Make viewers want to see what happens next
+
+This is segment 1 of ${allSegments.length} segments that will be combined into a seamless longer video. All subsequent segments must maintain IDENTICAL visual and audio characteristics established in this first segment to ensure smooth, continuous flow.`;
        }
 
        /**
@@ -508,31 +566,50 @@ This is segment 1 of ${allSegments.length} segments that will be combined into a
          // Extract key visual elements from the first segment
          const visualBaseline = this.extractVisualBaseline(firstSegmentPrompt);
          
-         return `Generate an 8-second video segment in English only, continuing from the previous segment.
+         return `Generate an 8-second video segment that continues seamlessly from the previous segment.
 
 CONTENT: ${segment.prompt}
 
-CRITICAL VISUAL CONSISTENCY REQUIREMENTS:
-- Continue seamlessly from the reference image (last frame of previous segment)
+CRITICAL SEAMLESS FLOW REQUIREMENTS:
+- This is NOT a new video - it's the next 8 seconds of the SAME continuous video
+- Continue IMMEDIATELY from the reference image (last frame of previous segment)
+- NO visual breaks, jumps, or transitions between segments
+- NO audio gaps, pauses, or changes in voiceover/music
+- The viewer should feel like they're watching one continuous video, not separate clips
+
+VISUAL CONTINUITY REQUIREMENTS:
 - Maintain EXACT same character appearance: ${visualBaseline.character}
 - Maintain EXACT same setting/background: ${visualBaseline.setting}
 - Maintain EXACT same lighting conditions: ${visualBaseline.lighting}
 - Maintain EXACT same camera style and angles: ${visualBaseline.camera}
 - Maintain EXACT same color palette and tones: ${visualBaseline.colors}
-- Maintain EXACT same music style and tempo: ${visualBaseline.music}
 - Maintain EXACT same aspect ratio: ${visualBaseline.aspectRatio}
 - Maintain EXACT same video quality: ${visualBaseline.quality}
 
+AUDIO CONTINUITY REQUIREMENTS:
+- Continue the SAME background music without any interruption or change
+- Maintain the SAME voiceover tone, pace, and style
+- NO audio gaps, silences, or changes between segments
+- Voiceover must flow naturally as if it's one continuous narration
+- Music tempo and style must remain identical
+
+STORY FLOW REQUIREMENTS:
+- Continue the story naturally from where the previous segment ended
+- Use smooth, natural actions that flow from the previous segment
+- Avoid abrupt changes in action or direction
+- Maintain the same energy level and pacing
+- Build naturally on what happened in the previous segment
+
 TECHNICAL REQUIREMENTS:
 - High quality, professional video
-- 9:16 aspect ratio (vertical)
-- Smooth camera movements
+- ${visualBaseline.aspectRatio} aspect ratio (vertical for mobile)
+- Smooth, natural camera movements
 - Clear, well-lit scene
-- English language only (no text overlays in other languages)
-- Suitable for social media (Instagram Reels/Stories)
-- Consistent with previous segment's visual style
+- English language only
+- Optimized for social media (Instagram Reels/Stories)
+- Consistent with previous segment's visual and audio style
 
-This is segment ${segment.segmentNumber} of ${allSegments.length} segments. Use the reference image to maintain visual continuity and ensure the character, background, lighting, colors, and camera style are IDENTICAL to the first segment.`;
+This is segment ${segment.segmentNumber} of ${allSegments.length} segments. The video must feel like the next 8 seconds of the same continuous video, not a separate clip. Use the reference image to maintain perfect visual continuity and ensure the story flows naturally.`;
        }
 
        /**
@@ -574,8 +651,8 @@ This is segment ${segment.segmentNumber} of ${allSegments.length} segments. Use 
          const music = musicMatch ? musicMatch[0].trim() : 'same music style';
          
          // Extract aspect ratio
-         const aspectRatioMatch = firstSegmentPrompt.match(/(?:9:16|16:9|1:1|vertical|horizontal|portrait|landscape)/);
-         const aspectRatio = aspectRatioMatch ? aspectRatioMatch[0] : '9:16 vertical';
+        const aspectRatioMatch = firstSegmentPrompt.match(/(?:16:9|1:1|horizontal|landscape)/);
+        const aspectRatio = aspectRatioMatch ? aspectRatioMatch[0] : '16:9 landscape';
          
          // Extract quality
          const qualityMatch = firstSegmentPrompt.match(/(?:professional|high quality|premium|excellent|clear|sharp|detailed)/);
@@ -588,7 +665,7 @@ This is segment ${segment.segmentNumber} of ${allSegments.length} segments. Use 
            camera: camera || 'same camera style',
            colors: colors || 'same color palette',
            music: music || 'same music style',
-           aspectRatio: aspectRatio || '9:16 vertical',
+           aspectRatio: aspectRatio || '16:9 landscape',
            quality: quality || 'professional quality'
          };
        }

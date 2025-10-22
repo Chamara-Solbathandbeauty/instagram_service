@@ -19,7 +19,7 @@ const GeneratedContentSchema = z.object({
   content: z.array(z.object({
     type: z.enum(['post_with_image', 'reel', 'story']),
     caption: z.string().min(10).max(2200),
-    hashtags: z.array(z.string()).min(5).max(30),
+    hashtags: z.array(z.string()).min(1).max(5),
     contentIdea: z.object({
       title: z.string().min(5).max(100).describe("Title of the content idea"),
       description: z.string().min(20).max(500).describe("Detailed description of the content idea"),
@@ -36,7 +36,7 @@ const GeneratedContentSchema = z.object({
 type GeneratedContent = z.infer<typeof GeneratedContentSchema>;
 
 @Injectable()
-export class ContentAgentService {
+export class ContentGeneratorService {
   private contentPrompt: PromptTemplate;
 
   constructor(
@@ -73,6 +73,7 @@ You are an expert Instagram content creator and social media strategist. Generat
 - Frequency: {frequency}
 - Content Types: {contentTypes}
 - Time Slots: {timeSlots}
+- Time Slot Details: {timeSlotDetails}
 
 ## Current Context
 - Current Date: {currentDate}
@@ -87,6 +88,7 @@ Generate content for the upcoming week ({generationWeek}) based on:
 3. **Optimal Timing**: Use the provided time slots for best engagement
 4. **Trend Integration**: Incorporate current trends relevant to the account
 5. **Hashtag Strategy**: Include relevant, trending hashtags
+6. **Time Slot Customization**: Use specific tone, dimensions, voice accent, and reel duration for each time slot
 6. **Engagement Focus**: Create content that encourages interaction
 
 ## Hard Requirements (must follow):
@@ -94,7 +96,7 @@ Generate content for the upcoming week ({generationWeek}) based on:
 2. Each content must have:
    - type ∈ (post_with_image, reel, story)
    - caption: 10-2200 characters, engaging and brand-appropriate
-   - hashtags: 5-30 relevant hashtags, mix of trending and niche
+   - hashtags: 1-5 relevant hashtags, mix of trending and niche
    - contentIdea: Structured content idea with:
      - title: Catchy title (5-100 chars)
      - description: Detailed description for media generation (20-500 chars)
@@ -232,6 +234,9 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       timeSlots: schedule.timeSlots.map((ts: any) => 
         `${ts.label || 'Slot'}: ${ts.startTime}-${ts.endTime}`
       ).join(', '),
+      timeSlotDetails: schedule.timeSlots.map((ts: any) => 
+        `${ts.label || 'Slot'}: ${ts.postType} | Tone: ${ts.tone || 'default'} | Dimensions: ${ts.dimensions || 'default'} | Voice: ${ts.preferredVoiceAccent || 'american'} | Duration: ${ts.reelDuration || 'default'}s`
+      ).join(', '),
       currentDate: new Date().toISOString().split('T')[0],
       generationWeek,
       trendingTopics: trendingTopics.join(', '),
@@ -304,13 +309,15 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         accountId: schedule.accountId,
         caption: contentData.caption,
         type: contentData.type,
-        status: ContentStatus.GENERATED,
+        status: ContentStatus.PENDING,
         generatedSource: 'ai_agent_with_media',
         hashTags: contentData.hashtags,
         usedTopics: contentData.contentIdea.description,
         tone: schedule.account.tone || 'professional',
-        // Set default duration based on content type
-        desiredDuration: (contentData.type === 'reel' || contentData.type === 'story') ? 30 : 8,
+        // Set duration based on time slot reelDuration when applicable
+        desiredDuration: (contentData.type === 'reel' || contentData.type === 'story')
+          ? (timeSlot.reelDuration || 16)
+          : 8,
         isExtendedVideo: (contentData.type === 'reel' || contentData.type === 'story'),
       });
 
@@ -357,21 +364,39 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
               contentData.contentIdea,
               contentData.caption,
               contentData.hashtags,
-              savedContentRecord.id  // Pass contentId for 30s video generation
+              savedContentRecord.id,  // Pass contentId for 30s video generation
+              'reel'  // Pass content type for reel-specific concatenation
             );
             break;
           case 'story':
-            // Stories are short videos, use reel generation agent with 30s support
-            mediaResult = await this.reelGenerationAgent.generateContent(
-              schedule.account,
-              schedule,
-              timeSlotForMedia,
-              publishDate,
-              contentData.contentIdea,
-              contentData.caption,
-              contentData.hashtags,
-              savedContentRecord.id  // Pass contentId for 30s video generation
-            );
+            // Check story type to determine generation path
+            if (timeSlotForMedia.storyType === 'image') {
+              // Generate static image story
+              console.log(`📸 Generating image story for content ${savedContentRecord.id}`);
+              mediaResult = await this.imageGenerationAgent.generateContent(
+                schedule.account,
+                schedule,
+                timeSlotForMedia,
+                publishDate,
+                contentData.contentIdea,
+                contentData.caption,
+                contentData.hashtags
+              );
+            } else {
+              // Generate video story (existing behavior)
+              console.log(`🎬 Generating video story for content ${savedContentRecord.id}`);
+              mediaResult = await this.reelGenerationAgent.generateContent(
+                schedule.account,
+                schedule,
+                timeSlotForMedia,
+                publishDate,
+                contentData.contentIdea,
+                contentData.caption,
+                contentData.hashtags,
+                savedContentRecord.id,  // Pass contentId for 30s video generation
+                'story'  // Pass content type for story-specific concatenation
+              );
+            }
             break;
           default:
             console.warn(`Unknown content type: ${contentData.type}`);

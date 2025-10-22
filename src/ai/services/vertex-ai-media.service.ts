@@ -11,6 +11,7 @@ export interface VertexAIImageRequest {
   mood: string;
   visualElements: string[];
   targetAudience: string;
+  aspectRatio?: '16:9' | '9:16'; // Support for story format (9:16)
 }
 
 export interface VertexAIVideoRequest {
@@ -20,7 +21,7 @@ export interface VertexAIVideoRequest {
   visualElements: string[];
   targetAudience: string;
   duration?: number;
-  aspectRatio?: '16:9' | '9:16' | '1:1';
+  aspectRatio?: '16:9' | '9:16'; // Veo 3 supported aspect ratios
   inputVideoGcsUri?: string; // For extending videos from previous segment
   seed?: number; // For consistency across segments (0-4294967295)
   referenceImageGcsUri?: string; // For image-to-video generation using last frame
@@ -71,7 +72,7 @@ export class VertexAIMediaService {
       }
       
       const response = await fetch(
-        `https://${this.vertexAiLocation}-aiplatform.googleapis.com/v1/projects/${this.vertexAiProjectId}/locations/${this.vertexAiLocation}/publishers/google/models/imagegeneration@006:predict`,
+        `https://${this.vertexAiLocation}-aiplatform.googleapis.com/v1/projects/${this.vertexAiProjectId}/locations/${this.vertexAiLocation}/publishers/google/models/imagen-4.0-ultra-generate-001:predict`,
         {
           method: 'POST',
           headers: {
@@ -83,7 +84,7 @@ export class VertexAIMediaService {
               prompt: enhancedPrompt,
               parameters: {
                 sampleCount: 1,
-                aspectRatio: "1:1",
+                aspectRatio: request.aspectRatio || "1:1",
                 safetyFilterLevel: "block_some",
                 personGeneration: "allow_adult"
               }
@@ -103,8 +104,10 @@ export class VertexAIMediaService {
         
         try {
           const errorData = await response.json();
+          console.error('❌ Vertex AI API Error Details:', JSON.stringify(errorData, null, 2));
           throw new Error(`Vertex AI API error: ${errorData.error?.message || response.statusText}`);
         } catch (jsonError) {
+          console.error('❌ Failed to parse error response:', jsonError);
           throw new Error(`Vertex AI API error: ${response.status} ${response.statusText}`);
         }
       }
@@ -192,21 +195,12 @@ export class VertexAIMediaService {
         throw new Error('Failed to get access token from ADC');
       }
       
-      // Build the API request payload
+      // Build the API request payload according to official Vertex AI documentation
+      console.log(`📐 Received aspect ratio: "${request.aspectRatio}"`);
       const instancePayload: any = {
         prompt: enhancedPrompt,
-        parameters: {
-          videoLength: request.duration || 8,
-          aspectRatio: request.aspectRatio || "9:16",
-          safetyFilterLevel: "block_some"
-        }
       };
 
-      // Add seed for consistency (if provided)
-      if (request.seed !== undefined) {
-        instancePayload.parameters.seed = request.seed;
-        console.log(`🎲 Using seed ${request.seed} for consistency`);
-      }
 
       // Use either video extension OR image-to-video generation, but not both
       if (request.inputVideoGcsUri && !request.referenceImageGcsUri) {
@@ -237,19 +231,56 @@ export class VertexAIMediaService {
       const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'insta_generated_videos';
       const requestParameters: any = {
         storageUri: `gs://${bucketName}/reels/generated`,
-        sampleCount: 1
+        sampleCount: 1,
+        // Video generation parameters (moved to top level according to official docs)
+        aspectRatio: request.aspectRatio || "9:16", // Veo 3 supports 16:9 and 9:16
+        durationSeconds: request.duration || 8,
+        generateAudio: true, // Generate synchronized audio to prevent mismatched accents
+        // Enhanced parameters for seamless flow
+        enhancePrompt: true, // Enhance prompts for better continuity
+        // compressionQuality: "high", // Not supported by Veo 3 API
+        personGeneration: "allow", // Allow person generation for consistency
+        // Audio flow parameters
+        // audioQuality: "high", // May not be supported by Veo 3 API
+        // Video flow parameters  
+        // resolution: "1080p", // May not be supported by Veo 3 API
+        // frameRate: 30, // May not be supported by Veo 3 API
       };
 
-      // Log complete API request
-      const apiRequest = {
+      // Add seed for consistency (if provided)
+      if (request.seed !== undefined) {
+        requestParameters.seed = request.seed;
+      }
+
+      // Validate request structure according to official documentation
+      if (!instancePayload.prompt) {
+        throw new Error('Prompt is required for video generation');
+      }
+      
+      if (!requestParameters.storageUri) {
+        throw new Error('StorageUri is required for video generation');
+      }
+
+      // Log complete API request for debugging
+      console.log(`📤 API Request Structure:`, {
+        instances: [instancePayload],
+        parameters: requestParameters
+      });
+
+      // Log the actual request body for debugging
+      const requestBody = {
         instances: [instancePayload],
         parameters: requestParameters
       };
+      console.log(`📤 Full Request Body:`, JSON.stringify(requestBody, null, 2));
       
       
        // Use predictLongRunning for video generation as per official documentation
+       const modelEndpoint = `https://${this.vertexAiLocation}-aiplatform.googleapis.com/v1/projects/${this.vertexAiProjectId}/locations/${this.vertexAiLocation}/publishers/google/models/veo-3.0-generate-001:predictLongRunning`;
+       console.log(`🎯 API Endpoint:`, modelEndpoint);
+       
        const response = await fetch(
-        `https://${this.vertexAiLocation}-aiplatform.googleapis.com/v1/projects/${this.vertexAiProjectId}/locations/${this.vertexAiLocation}/publishers/google/models/veo-3.0-generate-001:predictLongRunning`,
+        modelEndpoint,
         {
           method: 'POST',
           headers: {
@@ -274,8 +305,10 @@ export class VertexAIMediaService {
         
         try {
           const errorData = await response.json();
+          console.error('❌ Vertex AI API Error Details:', JSON.stringify(errorData, null, 2));
           throw new Error(`Vertex AI API error: ${errorData.error?.message || response.statusText}`);
         } catch (jsonError) {
+          console.error('❌ Failed to parse error response:', jsonError);
           throw new Error(`Vertex AI API error: ${response.status} ${response.statusText}`);
         }
       }
@@ -297,8 +330,7 @@ export class VertexAIMediaService {
         // This is a long-running operation - we need to monitor it
         console.log(`🎬 Video generation operation started: ${data.name}`);
         
-        // For now, return a placeholder response indicating the operation is in progress
-        // In a production system, you would implement proper operation monitoring
+        // eturn a placeholder response indicating the operation is in progress
         return {
           success: true,
           mediaData: undefined, // Will be populated when operation completes
