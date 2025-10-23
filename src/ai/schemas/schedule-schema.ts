@@ -13,7 +13,8 @@ export const TimeSlotSchema = z.object({
   tone: z.string().optional().describe("Content tone: free text describing the desired tone (e.g., 'professional', 'casual and friendly', 'authoritative and confident')"),
   dimensions: z.string().optional().describe("Content dimensions: 1:1, 9:16, 4:5, 16:9"),
   preferredVoiceAccent: z.string().optional().describe("Preferred voice accent: american, british, australian, neutral, canadian"),
-  reelDuration: z.number().optional().describe("Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"),
+  reelDuration: z.number().optional().describe("Duration in seconds: 8, 15, 30, 45, 60 (for reel and story post types)"),
+  storyType: z.string().optional().describe("Story type: 'video' or 'image' (only for story post type)"),
 });
 
 // Main Schedule Schema
@@ -139,7 +140,11 @@ export const scheduleJsonSchema = {
           },
           reelDuration: {
             type: "number",
-            description: "Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"
+            description: "Duration in seconds: 8, 15, 30, 45, 60 (for reel and story post types)"
+          },
+          storyType: {
+            type: "string",
+            description: "Story type: 'video' or 'image' (only for story post type)"
           }
         },
         required: ["startTime", "endTime", "dayOfWeek", "postType", "isEnabled"]

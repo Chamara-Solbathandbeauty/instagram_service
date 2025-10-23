@@ -44,7 +44,8 @@ Hard Requirements (must follow):
    - tone: content tone (free text describing the desired tone, e.g., "professional", "casual and friendly", "authoritative and confident") - match account type
    - dimensions: content format (1:1 for posts, 9:16 for reels/stories, 4:5 for Instagram posts, 16:9 for landscape)
    - preferredVoiceAccent: voice accent for audio content (american, british, australian, neutral, canadian)
-   - reelDuration: duration in seconds (8, 16, 24, 32) - ONLY for reel postType, omit for others
+   - reelDuration: duration in seconds (8, 15, 30, 45, 60) - for reel and story postType
+   - storyType: 'video' or 'image' - ONLY for story postType, omit for others
    - Favor windows typical for audience (examples):
      • business: weekdays 09:00:00–12:00:00 or 13:00:00–17:00:00 (post_with_image)
      • creator: weekdays 18:00:00–21:00:00; weekends late morning/afternoon (reel)
@@ -53,6 +54,9 @@ Hard Requirements (must follow):
    - Use postType distribution that reflects account type and topics:
      • business: post_with_image 50–70%, reel 20–40%, story 10–20%
      • creator: reel 40–60%, story 20–40%, post_with_image 10–30%
+   - For story postType, set storyType to 'video' for video stories, 'image' for static stories
+   - For story postType with storyType 'video', set reelDuration to 15-30 seconds (stories are typically shorter)
+   - For reel postType, set reelDuration to 16-30 seconds (reels can be longer)
 
 Strategy Guidance (apply, do not output):
 - Derive cadence from accountType and topics (e.g., trending/visual niches → more reels; tutorials/products → more posts)
