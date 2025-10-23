@@ -329,6 +329,12 @@ Respond with ONLY valid JSON (no markdown, no explanations):
       
       console.log(`✅ Parsed JSON successfully, segments count: ${parsed.segments?.length || 0}`);
       
+      // Debug: Log the structure of the first segment to understand the format
+      if (parsed.segments && parsed.segments.length > 0) {
+        console.log(`🔍 First segment structure:`, Object.keys(parsed.segments[0]));
+        console.log(`🔍 First segment content:`, JSON.stringify(parsed.segments[0], null, 2));
+      }
+      
       if (!parsed.segments || !Array.isArray(parsed.segments)) {
         console.error(`❌ Invalid script format:`, parsed);
         throw new Error('Invalid script format returned');
@@ -348,6 +354,17 @@ Respond with ONLY valid JSON (no markdown, no explanations):
           const music = typeof segment.audio.music === 'string' ? segment.audio.music : JSON.stringify(segment.audio.music || '');
           const voiceover = typeof segment.audio.voiceover === 'string' ? segment.audio.voiceover : JSON.stringify(segment.audio.voiceover || '');
           promptStr = `${visuals}\n\nAudio: ${music}\nVoiceover: ${voiceover}`;
+        }
+        // Handle camera_style and visuals fields (new AI response format)
+        else if (segment.camera_style || segment.visuals) {
+          const cameraStyle = segment.camera_style || '';
+          const visuals = Array.isArray(segment.visuals) ? segment.visuals.join(' ') : (segment.visuals || '');
+          const audio = segment.audio || '';
+          const voiceover = segment.voiceover || '';
+          
+          promptStr = `${cameraStyle} ${visuals}`.trim();
+          if (audio) promptStr += `\n\nAudio: ${audio}`;
+          if (voiceover) promptStr += `\nVoiceover: ${voiceover}`;
         }
         // If it already has a prompt field, use it
         else if (segment.prompt) {
