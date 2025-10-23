@@ -610,7 +610,7 @@ STORY FLOW REQUIREMENTS:
 
 TECHNICAL REQUIREMENTS:
 - High quality, professional video
-- ${visualBaseline.aspectRatio} aspect ratio (vertical for mobile)
+- ${visualBaseline.aspectRatio} aspect ratio (optimized for mobile viewing)
 - Smooth, natural camera movements
 - Clear, well-lit scene
 - English language only
@@ -634,8 +634,8 @@ This is segment ${segment.segmentNumber} of ${allSegments.length} segments. The 
          aspectRatio: string;
          quality: string;
        } {
-         // Extract character description (more comprehensive)
-         const characterMatch = firstSegmentPrompt.match(/([A-Za-z]+(?:,?\s+[A-Za-z]+)*)\s*(?:aged\s*\d+)?,?\s*(?:with\s*[^.]*)?(?:wearing\s*[^.]*)?/);
+         // Extract character description (more specific)
+         const characterMatch = firstSegmentPrompt.match(/(?:character|person|woman|man|host|instructor|trainer|guide)\s*[^.]*?(?:wearing|with|aged|years?|old)/);
          const character = characterMatch ? characterMatch[0].trim() : 'main character';
          
          // Extract setting/location (more comprehensive)
@@ -658,9 +658,9 @@ This is segment ${segment.segmentNumber} of ${allSegments.length} segments. The 
          const musicMatch = firstSegmentPrompt.match(/(?:music|track|sound|audio|beat|melody|upbeat|motivating|electronic|pop|acoustic|guitar|piano|instrumental)[^.]*?\./);
          const music = musicMatch ? musicMatch[0].trim() : 'same music style';
          
-         // Extract aspect ratio
-        const aspectRatioMatch = firstSegmentPrompt.match(/(?:16:9|1:1|horizontal|landscape)/);
-        const aspectRatio = aspectRatioMatch ? aspectRatioMatch[0] : '16:9 landscape';
+         // Extract aspect ratio (support both horizontal and vertical)
+        const aspectRatioMatch = firstSegmentPrompt.match(/(?:9:16|16:9|1:1|vertical|horizontal|landscape|portrait)/);
+        const aspectRatio = aspectRatioMatch ? aspectRatioMatch[0] : '9:16 vertical';
          
          // Extract quality
          const qualityMatch = firstSegmentPrompt.match(/(?:professional|high quality|premium|excellent|clear|sharp|detailed)/);
@@ -673,7 +673,7 @@ This is segment ${segment.segmentNumber} of ${allSegments.length} segments. The 
            camera: camera || 'same camera style',
            colors: colors || 'same color palette',
            music: music || 'same music style',
-           aspectRatio: aspectRatio || '16:9 landscape',
+           aspectRatio: aspectRatio || '9:16 vertical',
            quality: quality || 'professional quality'
          };
        }
