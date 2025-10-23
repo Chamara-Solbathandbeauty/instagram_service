@@ -14,6 +14,8 @@ export interface TimeSlotContext {
   preferredVoiceAccent?: string;
   dimensions?: string;
   reelDuration?: number;
+  caption?: string;
+  hashtags?: string[];
 }
 
 export interface ContentIdea {
@@ -112,6 +114,15 @@ SCHEDULE TIME SLOT REQUIREMENTS:
 - Duration: ${timeSlotContext.reelDuration || desiredDuration} seconds
 ` : '';
 
+    // Build caption and hashtag context for alignment
+    const captionContext = timeSlotContext?.caption ? `
+SOCIAL MEDIA CONTEXT:
+- Caption: ${timeSlotContext.caption}
+- Hashtags: ${timeSlotContext.hashtags?.join(', ') || 'N/A'}
+
+CRITICAL: The video content must visually support and align with the above caption and hashtags. The video narrative should reinforce the caption's message and hashtag themes.
+` : '';
+
     const scriptPrompt = `You are an expert video script writer for creating seamless 8-second video segments that flow together like a single continuous video.
 
 CRITICAL REQUIREMENTS FOR SMOOTH FLOW:
@@ -130,7 +141,11 @@ VIDEO CONCEPT:
 - Visual Elements: ${contentIdea.visualElements.join(', ')}
 - Target Audience: ${contentIdea.targetAudience}
 
+IMPORTANT: The video content MUST match the caption and hashtags that will be displayed with this content. Ensure the visual narrative aligns with the social media caption and hashtag strategy.
+
 ${timeSlotInfo}
+
+${captionContext}
 
 ${characterDetails}
 
@@ -294,6 +309,14 @@ Time Slot Requirements:
 - Dimensions: ${timeSlotContext.dimensions || '9:16 (vertical)'}
 ` : '';
 
+    const captionContext = timeSlotContext?.caption ? `
+Social Media Context:
+- Caption: ${timeSlotContext.caption}
+- Hashtags: ${timeSlotContext.hashtags?.join(', ') || 'N/A'}
+
+CRITICAL: The video content must visually support and align with the above caption and hashtags.
+` : '';
+
     return `Create a high-quality, engaging 8-second video with the following:
 
 Title: ${contentIdea.title}
@@ -304,6 +327,8 @@ Visual Elements: ${contentIdea.visualElements.join(', ')}
 Target Audience: ${contentIdea.targetAudience}
 
 ${timeSlotInfo}
+
+${captionContext}
 
 Requirements:
 - High resolution and smooth motion

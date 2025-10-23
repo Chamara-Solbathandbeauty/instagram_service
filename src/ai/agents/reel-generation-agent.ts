@@ -125,6 +125,9 @@ export class ReelGenerationAgent {
         preferredVoiceAccent: timeSlot.preferredVoiceAccent,
         dimensions: timeSlot.dimensions,
         reelDuration: timeSlot.reelDuration,
+        // Include caption and hashtags for alignment
+        caption: caption,
+        hashtags: hashtags,
       };
       
       const media = await this.extendedVideoService.generateExtendedVideo(
