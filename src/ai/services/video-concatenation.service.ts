@@ -106,7 +106,7 @@ export class VideoConcatenationService {
           '-strict -2', // Allow experimental codecs
           
           // Enhanced audio processing for seamless transitions
-          '-af', 'aresample=async=1:first_pts=0,volume=1.0', // Volume normalization without crossfade for concat demuxer
+          '-af', 'aresample=async=1:first_pts=0,volume=1.0,highpass=f=80,lowpass=f=15000,compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-30/-20|0/-20:6:0:-90:0.2', // Advanced audio processing for seamless flow
           '-async 1', // Audio sync correction
           '-fps_mode cfr', // Constant frame rate (replaces deprecated -vsync)
           '-avoid_negative_ts make_zero', // Handle negative timestamps
@@ -475,7 +475,7 @@ export class VideoConcatenationService {
             '-strict -2',
             
             // Enhanced audio processing for story flow
-            '-af', 'aresample=async=1:first_pts=0,volume=1.0,highpass=f=80,lowpass=f=15000',
+            '-af', 'aresample=async=1:first_pts=0,volume=1.0,highpass=f=80,lowpass=f=15000,compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-30/-20|0/-20:6:0:-90:0.2',
             '-async 1',
             '-fps_mode cfr',
             '-avoid_negative_ts make_zero',

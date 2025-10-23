@@ -194,13 +194,17 @@ SCRIPT REQUIREMENTS FOR SEAMLESS FLOW:
 - Maintain the ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
 - Keep ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistency
 
-AUDIO FLOW REQUIREMENTS:
-- Voiceover must flow continuously across all segments
-- No pauses, gaps, or changes in voiceover tone between segments
-- Background music must maintain consistent tempo and style
-- Audio transitions must be imperceptible
-- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistently
-- Maintain ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
+CRITICAL AUDIO CONTINUITY REQUIREMENTS:
+- BACKGROUND MUSIC: Each segment MUST specify the EXACT same music style, tempo, and key
+- MUSIC CONTINUITY: "Upbeat acoustic guitar at 120 BPM in C major" → Next segment: "Continue the SAME upbeat acoustic guitar at 120 BPM in C major"
+- NO MUSIC CHANGES: Never change music style, tempo, or key between segments
+- VOICEOVER FLOW: Each segment must continue the voiceover as if it's one continuous narration
+- VOICE CONSISTENCY: Use the SAME voice tone, pace, and accent throughout all segments
+- AUDIO SEAMLESSNESS: The audio should sound like one continuous 30-second video, not separate clips
+- MUSIC LAYERING: Maintain the same instrumental arrangement and mixing levels
+- VOICE TIMING: Voiceover should flow naturally without pauses or abrupt changes
+- AUDIO QUALITY: Maintain consistent audio levels and EQ across all segments
+- SOUND EFFECTS: If using sound effects, maintain the same ambient sounds throughout
 
 VISUAL FLOW REQUIREMENTS:
 - Camera movements must feel natural and connected
@@ -219,17 +223,17 @@ ${segmentCount > 2 ? `**FINAL SEGMENT (Powerful Closing - Last 8 seconds):**
 - Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
 - Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover` : ''}
 
-EXAMPLE (Seamless Flow Format):
+EXAMPLE (Seamless Audio Flow Format):
 
-Segment 1: "A confident 25-year-old woman with long brown hair, wearing a white summer dress, walks through a sunlit botanical garden at golden hour. The cobblestone path is lined with vibrant rose bushes and ancient oak trees. Warm amber lighting creates soft shadows. Upbeat acoustic guitar music plays at 120 BPM. Camera follows smoothly from behind as she walks with confident, graceful steps. Voiceover begins: 'Every journey starts with a single step...'"
+Segment 1: "A confident 25-year-old woman with long brown hair, wearing a white summer dress, walks through a sunlit botanical garden at golden hour. The cobblestone path is lined with vibrant rose bushes and ancient oak trees. Warm amber lighting creates soft shadows. Upbeat acoustic guitar music plays at 120 BPM in C major with consistent strumming pattern. Camera follows smoothly from behind as she walks with confident, graceful steps. Voiceover begins in a warm, engaging tone: 'Every journey starts with a single step...'"
 
-Segment 2: "She continues walking forward along the same cobblestone path, her white dress flowing gently in the breeze. Camera moves to her side, capturing her gentle smile as she notices a red rose. The same warm lighting and acoustic music continue seamlessly. Voiceover continues: '...and every step leads to new discoveries.'"
+Segment 2: "She continues walking forward along the same cobblestone path, her white dress flowing gently in the breeze. Camera moves to her side, capturing her gentle smile as she notices a red rose. The SAME warm lighting and SAME upbeat acoustic guitar music at 120 BPM in C major continues seamlessly without any change. Voiceover continues in the SAME warm, engaging tone without pause: '...and every step leads to new discoveries.'"
 
-Segment 3: "She carefully picks the red rose, bringing it to her nose with a contented expression. Camera slowly circles around to face her, showing her peaceful demeanor. The garden setting, lighting, and acoustic music remain unchanged. Voiceover flows: 'Sometimes the most beautiful moments are the simplest ones.'"
+Segment 3: "She carefully picks the red rose, bringing it to her nose with a contented expression. Camera slowly circles around to face her, showing her peaceful demeanor. The garden setting, lighting, and SAME upbeat acoustic guitar music at 120 BPM in C major remain completely unchanged. Voiceover flows in the SAME tone without interruption: 'Sometimes the most beautiful moments are the simplest ones.'"
 
-Segment 4: "She continues walking forward down the path with the rose in hand, her white dress flowing gently. Camera pulls back slightly as she walks into the distance, the garden path stretching ahead. The scene maintains the same lighting, music, and atmosphere. Voiceover concludes: 'And every ending is just a new beginning.'"
+Segment 4: "She continues walking forward down the path with the rose in hand, her white dress flowing gently. Camera pulls back slightly as she walks into the distance, the garden path stretching ahead. The scene maintains the SAME lighting, SAME upbeat acoustic guitar music at 120 BPM in C major, and SAME atmosphere. Voiceover concludes in the SAME warm tone: 'And every ending is just a new beginning.'"
 
-Notice: Each segment flows naturally into the next with continuous audio and visual consistency.
+CRITICAL: Notice how the music specification is IDENTICAL across all segments - "upbeat acoustic guitar at 120 BPM in C major" - and the voiceover flows as one continuous narration without any audio breaks or changes.
 
 Respond with ONLY valid JSON (no markdown, no explanations):
 {

@@ -586,12 +586,18 @@ VISUAL CONTINUITY REQUIREMENTS:
 - Maintain EXACT same aspect ratio: ${visualBaseline.aspectRatio}
 - Maintain EXACT same video quality: ${visualBaseline.quality}
 
-AUDIO CONTINUITY REQUIREMENTS:
-- Continue the SAME background music without any interruption or change
-- Maintain the SAME voiceover tone, pace, and style
-- NO audio gaps, silences, or changes between segments
-- Voiceover must flow naturally as if it's one continuous narration
-- Music tempo and style must remain identical
+CRITICAL AUDIO CONTINUITY REQUIREMENTS:
+- BACKGROUND MUSIC: Continue the EXACT same music style, tempo, key, and arrangement
+- MUSIC SPECIFICATION: If previous segment had "upbeat acoustic guitar at 120 BPM in C major", this segment MUST specify "Continue the SAME upbeat acoustic guitar at 120 BPM in C major"
+- NO MUSIC CHANGES: Never change music style, tempo, key, or instrumental arrangement
+- VOICEOVER FLOW: Continue the voiceover as if it's one continuous narration without any pauses
+- VOICE CONSISTENCY: Use the EXACT same voice tone, pace, accent, and energy level
+- AUDIO SEAMLESSNESS: The audio should sound like one continuous video, not separate clips
+- MUSIC LAYERING: Maintain the same instrumental arrangement, mixing levels, and EQ
+- VOICE TIMING: Voiceover should flow naturally without gaps or abrupt changes
+- AUDIO QUALITY: Maintain consistent audio levels and frequency response
+- SOUND EFFECTS: Continue the same ambient sounds and audio atmosphere
+- NO AUDIO GAPS: Ensure there are no silences, pauses, or audio breaks between segments
 
 STORY FLOW REQUIREMENTS:
 - Continue the story naturally from where the previous segment ended
