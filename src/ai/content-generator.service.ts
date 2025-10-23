@@ -342,6 +342,12 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
           isEnabled: true,
           createdAt: new Date(),
           updatedAt: new Date(),
+          // Include all time slot fields for proper duration handling
+          reelDuration: timeSlot.reelDuration,
+          tone: timeSlot.tone,
+          dimensions: timeSlot.dimensions,
+          preferredVoiceAccent: timeSlot.preferredVoiceAccent,
+          storyType: timeSlot.storyType,
         } as any;
 
         switch (contentData.type) {
