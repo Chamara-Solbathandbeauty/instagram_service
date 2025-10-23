@@ -118,4 +118,5 @@ uploads/*
 
 authentication.json
 *.md
+*.json
 
