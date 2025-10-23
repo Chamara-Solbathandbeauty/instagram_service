@@ -87,13 +87,22 @@ export class VideoScriptGenerationService {
       // Two segments for medium videos
       segmentCount = 2;
       segmentDuration = Math.ceil(desiredDuration / 2);
+    } else if (desiredDuration <= 24) {
+      // Three segments for longer videos
+      segmentCount = 3;
+      segmentDuration = Math.ceil(desiredDuration / 3);
+    } else if (desiredDuration <= 32) {
+      // Four segments for extended videos
+      segmentCount = 4;
+      segmentDuration = Math.ceil(desiredDuration / 4);
     } else {
-      // Multiple segments for longer videos, but cap at 8 seconds per segment
+      // Multiple segments for very long videos, but cap at 8 seconds per segment
       segmentCount = Math.ceil(desiredDuration / 8);
       segmentDuration = 8;
     }
     
     console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video (${segmentDuration}s per segment)`);
+    console.log(`🔍 DEBUG: desiredDuration=${desiredDuration}, segmentCount=${segmentCount}, segmentDuration=${segmentDuration}`);
     
     // Build comprehensive character and setting details
     const characterDetails = contentIdea.character ? `

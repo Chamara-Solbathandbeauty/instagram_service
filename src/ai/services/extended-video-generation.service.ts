@@ -46,6 +46,7 @@ export class ExtendedVideoGenerationService {
   ): Promise<Media> {
     try {
       console.log(`🎬 Starting extended video generation for content ${contentId}, duration: ${desiredDuration}s`);
+      console.log(`🔍 DEBUG: contentId=${contentId}, desiredDuration=${desiredDuration}, contentType=${contentType}`);
 
       // 1. Generate segmented script
       console.log(`🤖 Generating segmented script with AI...`);

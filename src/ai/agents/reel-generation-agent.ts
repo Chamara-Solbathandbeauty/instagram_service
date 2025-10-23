@@ -104,10 +104,12 @@ export class ReelGenerationAgent {
         // Stories typically should be shorter, use 8-15 seconds range
         desiredDuration = timeSlot.reelDuration || 15; // Default to 15s for stories
         console.log(`📱 Generating STORY video: ${desiredDuration}s for content ${savedContentId}`);
+        console.log(`🔍 DEBUG: timeSlot.reelDuration=${timeSlot.reelDuration}, contentType=${contentType}`);
       } else {
         // For reels, use the standard duration
         desiredDuration = timeSlot.reelDuration || 16; // Default to 16s for reels
         console.log(`🎬 Generating REEL video: ${desiredDuration}s for content ${savedContentId}`);
+        console.log(`🔍 DEBUG: timeSlot.reelDuration=${timeSlot.reelDuration}, contentType=${contentType}`);
       }
       console.log(`📐 Time slot dimensions: "${timeSlot.dimensions}"`);
       
