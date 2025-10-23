@@ -63,46 +63,47 @@ export class VideoScriptGenerationService {
     desiredDuration: number,
     timeSlotContext?: TimeSlotContext,
   ): Promise<SegmentScript[]> {
-    // For short videos, return single segment with actual duration
+    // For short videos, return single segment with 8-second duration (Veo 3.0 compatible)
     if (desiredDuration <= 8) {
       return [
         {
           segmentNumber: 1,
-          duration: desiredDuration, // Use actual desired duration
+          duration: 8, // Always use 8s for Veo 3.0 compatibility
           prompt: this.buildSingleSegmentPrompt(contentIdea, timeSlotContext),
         },
       ];
     }
 
     // Calculate segments based on desired duration
-    // For stories, use more flexible segment sizing
+    // IMPORTANT: Vertex AI Veo 3.0 only supports durations: 4, 6, 8 seconds
     let segmentCount: number;
     let segmentDuration: number;
     
     if (desiredDuration <= 8) {
-      // Single segment for short videos
+      // Single segment for short videos (use 8s for maximum compatibility)
       segmentCount = 1;
-      segmentDuration = desiredDuration;
+      segmentDuration = 8; // Always use 8s for single segments
     } else if (desiredDuration <= 16) {
       // Two segments for medium videos
       segmentCount = 2;
-      segmentDuration = Math.ceil(desiredDuration / 2);
+      segmentDuration = 8; // Use 8s per segment (total: 16s)
     } else if (desiredDuration <= 24) {
       // Three segments for longer videos
       segmentCount = 3;
-      segmentDuration = Math.ceil(desiredDuration / 3);
+      segmentDuration = 8; // Use 8s per segment (total: 24s)
     } else if (desiredDuration <= 32) {
       // Four segments for extended videos
       segmentCount = 4;
-      segmentDuration = Math.ceil(desiredDuration / 4);
+      segmentDuration = 8; // Use 8s per segment (total: 32s)
     } else {
-      // Multiple segments for very long videos, but cap at 8 seconds per segment
+      // Multiple segments for very long videos
       segmentCount = Math.ceil(desiredDuration / 8);
-      segmentDuration = 8;
+      segmentDuration = 8; // Always use 8s per segment
     }
     
     console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video (${segmentDuration}s per segment)`);
     console.log(`🔍 DEBUG: desiredDuration=${desiredDuration}, segmentCount=${segmentCount}, segmentDuration=${segmentDuration}`);
+    console.log(`⚠️  VEO 3.0 LIMITATION: Using 8s segments (Veo 3.0 only supports 4s, 6s, 8s durations)`);
     
     // Build comprehensive character and setting details
     const characterDetails = contentIdea.character ? `
@@ -385,8 +386,8 @@ Requirements:
   ): SegmentScript[] {
     const segments: SegmentScript[] = [];
 
-    // Calculate segment duration based on desired duration
-    const segmentDuration = desiredDuration ? Math.ceil(desiredDuration / segmentCount) : 8;
+    // Calculate segment duration - always use 8s for Veo 3.0 compatibility
+    const segmentDuration = 8; // Always use 8s for Veo 3.0 compatibility
 
     // Build character and setting details for fallback
     const characterDesc = contentIdea.character 
