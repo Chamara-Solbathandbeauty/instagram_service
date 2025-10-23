@@ -4,21 +4,26 @@ export class UpdateContentStatusValues1735000000003 implements MigrationInterfac
   name = 'UpdateContentStatusValues1735000000003';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // First, add 'generated' to the enum if it doesn't exist
-    try {
-      await queryRunner.query(`ALTER TYPE "content_status_enum" ADD VALUE 'generated'`);
-      console.log('Successfully added "generated" to content_status_enum');
-    } catch (error) {
-      // If the value already exists, that's fine
-      if (error.message.includes('already exists')) {
-        console.log('Value "generated" already exists in enum');
-      } else {
+    // Check if 'generated' already exists in the enum
+    const enumValues = await queryRunner.query(`
+      SELECT enumlabel FROM pg_enum 
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'content_status_enum')
+    `);
+    
+    const hasGenerated = enumValues.some((row: any) => row.enumlabel === 'generated');
+    
+    if (!hasGenerated) {
+      try {
+        await queryRunner.query(`ALTER TYPE "content_status_enum" ADD VALUE 'generated'`);
+        console.log('Successfully added "generated" to content_status_enum');
+      } catch (error) {
+        console.log('Error adding "generated" to enum:', error.message);
         throw error;
       }
+    } else {
+      console.log('Value "generated" already exists in enum');
     }
 
-    // Since we can't use the new enum value in the same transaction,
-    // we'll skip the data migration for now and just ensure the enum is updated
     console.log('Enum updated successfully. Data migration will be handled in a separate step if needed.');
   }
 
