@@ -229,12 +229,21 @@ export class VertexAIMediaService {
       
       // Build parameters with storageUri (official workflow - Veo stores directly to GCS)
       const bucketName = process.env.GOOGLE_CLOUD_STORAGE_BUCKET || 'insta_generated_videos';
+      
+      // CRITICAL: Veo 3.0 only supports durations: 4, 6, 8 seconds
+      // Ensure we never send unsupported durations
+      let safeDuration = request.duration || 8;
+      if (![4, 6, 8].includes(safeDuration)) {
+        console.log(`⚠️  VEO 3.0 LIMITATION: Duration ${safeDuration}s not supported, using 8s instead`);
+        safeDuration = 8;
+      }
+      
       const requestParameters: any = {
         storageUri: `gs://${bucketName}/reels/generated`,
         sampleCount: 1,
         // Video generation parameters (moved to top level according to official docs)
         aspectRatio: request.aspectRatio || "9:16", // Veo 3 supports 16:9 and 9:16
-        durationSeconds: request.duration || 8,
+        durationSeconds: safeDuration, // Use safe duration only
         generateAudio: true, // Generate synchronized audio to prevent mismatched accents
         // Enhanced parameters for seamless flow
         enhancePrompt: true, // Enhance prompts for better continuity
