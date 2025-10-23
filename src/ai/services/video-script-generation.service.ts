@@ -62,6 +62,7 @@ export class VideoScriptGenerationService {
     contentIdea: ContentIdea,
     desiredDuration: number,
     timeSlotContext?: TimeSlotContext,
+    contentType?: 'reel' | 'story',
   ): Promise<SegmentScript[]> {
     // For short videos, return single segment with 8-second duration (Veo 3.0 compatible)
     if (desiredDuration <= 8) {
@@ -69,7 +70,7 @@ export class VideoScriptGenerationService {
         {
           segmentNumber: 1,
           duration: 8, // Always use 8s for Veo 3.0 compatibility
-          prompt: this.buildSingleSegmentPrompt(contentIdea, timeSlotContext),
+          prompt: this.buildSingleSegmentPrompt(contentIdea, timeSlotContext, contentType),
         },
       ];
     }
@@ -150,6 +151,32 @@ SOCIAL MEDIA CONTEXT:
 CRITICAL: The video content must visually support and align with the above caption and hashtags. The video narrative should reinforce the caption's message and hashtag themes.
 ` : '';
 
+    // Build content type specific requirements
+    const contentTypeInfo = contentType === 'reel' ? `
+REEL CONTENT REQUIREMENTS:
+- Fast-paced, engaging content optimized for social media
+- Strong opening hook within first 2 seconds
+- Quick cuts and dynamic visuals
+- Clear call-to-action in final segment
+- High energy and engaging throughout
+- Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
+- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+` : contentType === 'story' ? `
+STORY CONTENT REQUIREMENTS:
+- More personal and intimate storytelling
+- Smooth, flowing narrative
+- Natural pacing and transitions
+- Emotional connection with audience
+- Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
+- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+` : `
+GENERAL VIDEO REQUIREMENTS:
+- Professional, engaging content
+- Smooth flow and transitions
+- Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
+- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+`;
+
     const scriptPrompt = `You are an expert video script writer for creating seamless 8-second video segments that flow together like a single continuous video.
 
 CRITICAL REQUIREMENTS FOR SMOOTH FLOW:
@@ -158,7 +185,9 @@ CRITICAL REQUIREMENTS FOR SMOOTH FLOW:
 - Visual transitions must be smooth and natural
 - Story progression must feel organic and engaging
 
-TASK: Create a ${desiredDuration}-second video script divided into ${segmentCount} segments of 8 seconds each.
+TASK: Create a ${desiredDuration}-second ${contentType || 'video'} script divided into ${segmentCount} segments of 8 seconds each.
+
+${contentTypeInfo}
 
 VIDEO CONCEPT:
 - Title: ${contentIdea.title}
@@ -193,6 +222,7 @@ SCRIPT REQUIREMENTS FOR SEAMLESS FLOW:
   - Set up smooth transition to next segment (6-8 seconds)
   - Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
   - Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover
+  ${contentType === 'reel' ? '- REEL SPECIFIC: High energy, fast-paced, social media optimized' : ''}
 
 **SEGMENTS 2-${segmentCount} (Seamless Continuation):**
 - Continue the story naturally without visual or audio breaks
@@ -203,6 +233,7 @@ SCRIPT REQUIREMENTS FOR SEAMLESS FLOW:
 - Each segment should feel like the next 8 seconds of the same video, not a new clip
 - Maintain the ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
 - Keep ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistency
+${contentType === 'reel' ? '- REEL SPECIFIC: Maintain high energy, quick cuts, engaging visuals' : ''}
 
 CRITICAL AUDIO CONTINUITY REQUIREMENTS:
 - BACKGROUND MUSIC: Each segment MUST specify the EXACT same music style, tempo, and key
@@ -231,7 +262,8 @@ ${segmentCount > 2 ? `**FINAL SEGMENT (Powerful Closing - Last 8 seconds):**
 - Create a sense of completion and fulfillment
 - Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio for optimal viewing
 - Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
-- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover` : ''}
+- Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover
+${contentType === 'reel' ? '- REEL SPECIFIC: Strong call-to-action, high energy finish, social media engagement' : ''}` : ''}
 
 EXAMPLE (Seamless Audio Flow Format):
 
@@ -331,7 +363,7 @@ Respond with ONLY valid JSON (no markdown, no explanations):
   /**
    * Build a single segment prompt for 8-second videos
    */
-  private buildSingleSegmentPrompt(contentIdea: ContentIdea, timeSlotContext?: TimeSlotContext): string {
+  private buildSingleSegmentPrompt(contentIdea: ContentIdea, timeSlotContext?: TimeSlotContext, contentType?: 'reel' | 'story'): string {
     const timeSlotInfo = timeSlotContext ? `
 Time Slot Requirements:
 - Label: ${timeSlotContext.label || 'General Content'}
@@ -348,7 +380,29 @@ Social Media Context:
 CRITICAL: The video content must visually support and align with the above caption and hashtags.
 ` : '';
 
-    return `Create a high-quality, engaging 8-second video with the following:
+    const contentTypeRequirements = contentType === 'reel' ? `
+REEL SPECIFIC REQUIREMENTS:
+- Fast-paced, high-energy content optimized for social media
+- Strong opening hook within first 2 seconds
+- Quick cuts and dynamic visuals
+- Clear call-to-action or engaging conclusion
+- High energy and engaging throughout
+- Optimized for social media sharing
+` : contentType === 'story' ? `
+STORY SPECIFIC REQUIREMENTS:
+- More personal and intimate storytelling
+- Smooth, flowing narrative
+- Natural pacing and transitions
+- Emotional connection with audience
+- Intimate and engaging content
+` : `
+GENERAL REQUIREMENTS:
+- Professional, engaging content
+- Smooth flow and transitions
+- Clear and focused narrative
+`;
+
+    return `Create a high-quality, engaging 8-second ${contentType || 'video'} with the following:
 
 Title: ${contentIdea.title}
 Description: ${contentIdea.description}
@@ -361,7 +415,9 @@ ${timeSlotInfo}
 
 ${captionContext}
 
-Requirements:
+${contentTypeRequirements}
+
+Technical Requirements:
 - High resolution and smooth motion
 - Professional cinematography
 - Engaging visual storytelling

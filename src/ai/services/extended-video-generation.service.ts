@@ -54,6 +54,7 @@ export class ExtendedVideoGenerationService {
         contentIdea,
         desiredDuration,
         timeSlotContext,
+        contentType,
       );
 
       console.log(`📝 Generated ${segments.length} segment scripts`);
