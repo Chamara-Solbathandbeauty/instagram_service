@@ -147,11 +147,23 @@ SCHEDULE TIME SLOT REQUIREMENTS:
 
     // Build caption and hashtag context for alignment
     const captionContext = timeSlotContext?.caption ? `
-SOCIAL MEDIA CONTEXT:
-- Caption: ${timeSlotContext.caption}
-- Hashtags: ${timeSlotContext.hashtags?.join(', ') || 'N/A'}
+🎯 CRITICAL CAPTION ALIGNMENT REQUIREMENTS:
+- CAPTION: "${timeSlotContext.caption}"
+- HASHTAGS: ${timeSlotContext.hashtags?.join(', ') || 'N/A'}
 
-CRITICAL: The video content must visually support and align with the above caption and hashtags. The video narrative should reinforce the caption's message and hashtag themes.
+🚨 MANDATORY VIDEO-CAPTION ALIGNMENT:
+- The video content MUST directly support and visualize the caption's message
+- Every visual element should reinforce what the caption is saying
+- The video narrative should be a visual representation of the caption
+- Hashtag themes must be reflected in the video content and visuals
+- The video should make the caption's message more compelling and engaging
+- NO MISMATCH: The video and caption must tell the same story
+
+📝 CAPTION ANALYSIS:
+- Extract the key message from the caption
+- Identify the main themes and emotions
+- Determine what visuals would best support this message
+- Plan how each segment can reinforce the caption's impact
 ` : '';
 
     // Build content type specific requirements
@@ -200,7 +212,8 @@ VIDEO CONCEPT:
 - Visual Elements: ${contentIdea.visualElements.join(', ')}
 - Target Audience: ${contentIdea.targetAudience}
 
-IMPORTANT: The video content MUST match the caption and hashtags that will be displayed with this content. Ensure the visual narrative aligns with the social media caption and hashtag strategy.
+🚨 CRITICAL CAPTION-VIDEO ALIGNMENT:
+The video content MUST perfectly match the caption and hashtags. The video should be a visual representation of the caption's message. Every segment must reinforce the caption's themes and hashtag strategy. NO MISMATCH ALLOWED.
 
 ${timeSlotInfo}
 
@@ -236,6 +249,7 @@ SCRIPT REQUIREMENTS FOR SEAMLESS FLOW:
 - Each segment should feel like the next 8 seconds of the same video, not a new clip
 - Maintain the ${timeSlotContext?.tone || 'Professional and engaging'} tone throughout
 - Keep ${timeSlotContext?.preferredVoiceAccent || 'American'} accent consistency
+- CAPTION ALIGNMENT: Each segment must reinforce the caption's message and hashtag themes
 ${contentType === 'reel' ? '- REEL SPECIFIC: Maintain high energy, quick cuts, engaging visuals' : ''}
 
 CRITICAL AUDIO CONTINUITY REQUIREMENTS:
@@ -266,6 +280,7 @@ ${segmentCount > 2 ? `**FINAL SEGMENT (Powerful Closing - Last 8 seconds):**
 - Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio for optimal viewing
 - Follow the specified tone: ${timeSlotContext?.tone || 'Professional and engaging'}
 - Use ${timeSlotContext?.preferredVoiceAccent || 'American'} accent for voiceover
+- CAPTION ALIGNMENT: Final segment must strongly reinforce the caption's message and hashtag themes
 ${contentType === 'reel' ? '- REEL SPECIFIC: Strong call-to-action, high energy finish, social media engagement' : ''}` : ''}
 
 EXAMPLE (Seamless Audio Flow Format):
