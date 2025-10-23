@@ -304,20 +304,33 @@ Respond with ONLY valid JSON (no markdown, no explanations):
 }`;
 
     try {
+      console.log(`🤖 Calling LLM for script generation with ${segmentCount} segments`);
+      console.log(`📝 Prompt length: ${scriptPrompt.length} characters`);
+      
       const llm = this.llmService.getLLM();
       const response = await llm.invoke(scriptPrompt);
+      
+      console.log(`📥 LLM Response received:`, typeof response.content);
       
       // Extract text content from response
       const responseText = typeof response.content === 'string' 
         ? response.content 
         : JSON.stringify(response.content);
       
+      console.log(`📄 Response text length: ${responseText.length}`);
+      console.log(`📄 Response preview: ${responseText.substring(0, 200)}...`);
+      
       // Clean up markdown code blocks if present
       const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       
+      console.log(`🧹 Cleaned text length: ${cleanedText.length}`);
+      
       const parsed = JSON.parse(cleanedText);
       
+      console.log(`✅ Parsed JSON successfully, segments count: ${parsed.segments?.length || 0}`);
+      
       if (!parsed.segments || !Array.isArray(parsed.segments)) {
+        console.error(`❌ Invalid script format:`, parsed);
         throw new Error('Invalid script format returned');
       }
 
@@ -354,9 +367,23 @@ Respond with ONLY valid JSON (no markdown, no explanations):
 
       return transformedSegments as SegmentScript[];
     } catch (error) {
-      console.error('Failed to generate segmented script:', error);
-      // Fallback: generate simple sequential prompts
-      return this.generateFallbackScript(contentIdea, segmentCount, desiredDuration);
+      console.error('❌ Failed to generate segmented script:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // If it's a JSON parsing error, show the problematic text
+      if (error.message.includes('JSON')) {
+        console.error('❌ JSON parsing failed. This might be due to:');
+        console.error('1. LLM returning invalid JSON format');
+        console.error('2. LLM returning markdown instead of JSON');
+        console.error('3. LLM returning empty or malformed response');
+        console.error('4. LLM service connection issues');
+      }
+      
+      throw new Error(`AI script generation failed: ${error.message}`);
     }
   }
 
@@ -432,57 +459,4 @@ Technical Requirements:
 - Use ${timeSlotContext?.dimensions || '9:16'} aspect ratio`;
   }
 
-  /**
-   * Fallback script generation if AI fails
-   */
-  private generateFallbackScript(
-    contentIdea: ContentIdea,
-    segmentCount: number,
-    desiredDuration?: number,
-  ): SegmentScript[] {
-    const segments: SegmentScript[] = [];
-
-    // Calculate segment duration - always use 8s for Veo 3.0 compatibility
-    const segmentDuration = 8; // Always use 8s for Veo 3.0 compatibility
-
-    // Build character and setting details for fallback
-    const characterDesc = contentIdea.character 
-      ? `${contentIdea.character.appearance}. ${contentIdea.character.personality}.`
-      : 'A person';
-    
-    const settingDesc = contentIdea.setting 
-      ? `${contentIdea.setting.location} at ${contentIdea.setting.timeOfDay}. ${contentIdea.setting.weather}. ${contentIdea.setting.atmosphere}. Features: ${contentIdea.setting.specificDetails.join(', ')}.`
-      : 'A suitable location';
-
-    // Segment 1: Detailed establishment with character and setting
-    const basePrompt = `${contentIdea.description}. Visual style: ${contentIdea.style}. Mood: ${contentIdea.mood}. Include these elements: ${contentIdea.visualElements.join(', ')}.`;
-    
-    segments.push({
-      segmentNumber: 1,
-      duration: segmentDuration,
-      prompt: `${characterDesc} in ${settingDesc} ${basePrompt} Professional cinematography with smooth camera movements. Start with a compelling visual hook (0-2 seconds), establish character appearance, location, lighting, and composition (2-6 seconds), and build momentum for the next segment (6-8 seconds).`,
-    });
-
-    // Segments 2+: Simple action progressions (Veo auto-continues visuals)
-    const narrativeActions = [
-      'Continue the action with natural progression.',
-      'Build towards the key moment or message.',
-      'Conclude with impactful finale.',
-    ];
-
-    for (let i = 1; i < segmentCount; i++) {
-      const isLastSegment = i === segmentCount - 1;
-      const action = isLastSegment 
-        ? 'Build to a compelling climax or key message (0-4 seconds), then conclude with a satisfying ending or call-to-action (4-8 seconds).'
-        : narrativeActions[i - 1] || 'Continue the narrative naturally.';
-      
-      segments.push({
-        segmentNumber: i + 1,
-        duration: segmentDuration,
-        prompt: action,
-      });
-    }
-
-    return segments;
-  }
 }
