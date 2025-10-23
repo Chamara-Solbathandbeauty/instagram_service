@@ -119,3 +119,8 @@ uploads/*
 *.md
 *.json
 
+# Google Cloud Service Account credentials
+*service-account*.json
+*credentials*.json
+insta-automation-*.json
+
