@@ -314,10 +314,12 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         hashTags: contentData.hashtags,
         usedTopics: contentData.contentIdea.description,
         tone: schedule.account.tone || 'professional',
-        // Set duration based on time slot reelDuration when applicable
-        desiredDuration: (contentData.type === 'reel' || contentData.type === 'story')
-          ? (timeSlot.reelDuration || 16)
-          : 8,
+        // Set duration based on content type and time slot
+        desiredDuration: contentData.type === 'story' 
+          ? (timeSlot.reelDuration || 15) // Stories: 15s default
+          : contentData.type === 'reel' 
+          ? (timeSlot.reelDuration || 16) // Reels: 16s default
+          : 8, // Posts: 8s default
         isExtendedVideo: (contentData.type === 'reel' || contentData.type === 'story'),
       });
 

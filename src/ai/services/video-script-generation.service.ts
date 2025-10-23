@@ -63,20 +63,37 @@ export class VideoScriptGenerationService {
     desiredDuration: number,
     timeSlotContext?: TimeSlotContext,
   ): Promise<SegmentScript[]> {
-    // For 8-second videos, return single segment
+    // For short videos, return single segment with actual duration
     if (desiredDuration <= 8) {
       return [
         {
           segmentNumber: 1,
-          duration: 8,
+          duration: desiredDuration, // Use actual desired duration
           prompt: this.buildSingleSegmentPrompt(contentIdea, timeSlotContext),
         },
       ];
     }
 
     // Calculate segments based on desired duration
-    const segmentCount = Math.ceil(desiredDuration / 8); // Each segment is 8 seconds
-    console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video`);
+    // For stories, use more flexible segment sizing
+    let segmentCount: number;
+    let segmentDuration: number;
+    
+    if (desiredDuration <= 8) {
+      // Single segment for short videos
+      segmentCount = 1;
+      segmentDuration = desiredDuration;
+    } else if (desiredDuration <= 16) {
+      // Two segments for medium videos
+      segmentCount = 2;
+      segmentDuration = Math.ceil(desiredDuration / 2);
+    } else {
+      // Multiple segments for longer videos, but cap at 8 seconds per segment
+      segmentCount = Math.ceil(desiredDuration / 8);
+      segmentDuration = 8;
+    }
+    
+    console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video (${segmentDuration}s per segment)`);
     
     // Build comprehensive character and setting details
     const characterDetails = contentIdea.character ? `
@@ -219,22 +236,22 @@ Respond with ONLY valid JSON (no markdown, no explanations):
   "segments": [
     {
       "segmentNumber": 1,
-      "duration": 8,
+      "duration": ${segmentDuration},
       "prompt": "Complete setup with character, setting, lighting, music, and opening action. Include voiceover start."
     },
     {
       "segmentNumber": 2,
-      "duration": 8,
+      "duration": ${segmentDuration},
       "prompt": "Seamless continuation with same character, setting, lighting, music. Natural story progression with continuous voiceover."
     },
     {
       "segmentNumber": 3,
-      "duration": 8,
+      "duration": ${segmentDuration},
       "prompt": "Seamless continuation with same character, setting, lighting, music. Build story momentum with continuous voiceover."
     },
     {
       "segmentNumber": 4,
-      "duration": 8,
+      "duration": ${segmentDuration},
       "prompt": "Seamless conclusion with same character, setting, lighting, music. Complete story arc with continuous voiceover."
     }
   ]

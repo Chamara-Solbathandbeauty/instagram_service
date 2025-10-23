@@ -98,8 +98,17 @@ export class ReelGenerationAgent {
       const enhancedContentIdea = this.enhanceContentIdea(contentIdea);
 
       // Generate extended video using desired duration from time slot
-      const desiredDuration = timeSlot.reelDuration || 16; // default to 16s if not set
-      console.log(`🎥 Generating ${desiredDuration}s video for content ${savedContentId}`);
+      // For stories, use a more appropriate default duration
+      let desiredDuration: number;
+      if (contentType === 'story') {
+        // Stories typically should be shorter, use 8-15 seconds range
+        desiredDuration = timeSlot.reelDuration || 15; // Default to 15s for stories
+        console.log(`📱 Generating STORY video: ${desiredDuration}s for content ${savedContentId}`);
+      } else {
+        // For reels, use the standard duration
+        desiredDuration = timeSlot.reelDuration || 16; // Default to 16s for reels
+        console.log(`🎬 Generating REEL video: ${desiredDuration}s for content ${savedContentId}`);
+      }
       console.log(`📐 Time slot dimensions: "${timeSlot.dimensions}"`);
       
       // Validate and fix aspect ratio if needed
