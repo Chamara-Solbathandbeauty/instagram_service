@@ -64,8 +64,11 @@ export class VideoScriptGenerationService {
     timeSlotContext?: TimeSlotContext,
     contentType?: 'reel' | 'story',
   ): Promise<SegmentScript[]> {
+    // Adjust duration to prevent end cutoff by using 1 second less
+    const adjustedDuration = Math.max(desiredDuration - 1, 8); // Minimum 8 seconds
+    console.log(`📏 Duration adjustment: ${desiredDuration}s → ${adjustedDuration}s (to prevent end cutoff)`);
     // For short videos, return single segment with 8-second duration (Veo 3.0 compatible)
-    if (desiredDuration <= 8) {
+    if (adjustedDuration <= 8) {
       return [
         {
           segmentNumber: 1,
@@ -75,35 +78,35 @@ export class VideoScriptGenerationService {
       ];
     }
 
-    // Calculate segments based on desired duration
+    // Calculate segments based on adjusted duration
     // IMPORTANT: Vertex AI Veo 3.0 only supports durations: 4, 6, 8 seconds
     let segmentCount: number;
     let segmentDuration: number;
     
-    if (desiredDuration <= 8) {
+    if (adjustedDuration <= 8) {
       // Single segment for short videos (use 8s for maximum compatibility)
       segmentCount = 1;
       segmentDuration = 8; // Always use 8s for single segments
-    } else if (desiredDuration <= 16) {
+    } else if (adjustedDuration <= 16) {
       // Two segments for medium videos
       segmentCount = 2;
       segmentDuration = 8; // Use 8s per segment (total: 16s)
-    } else if (desiredDuration <= 24) {
+    } else if (adjustedDuration <= 24) {
       // Three segments for longer videos
       segmentCount = 3;
       segmentDuration = 8; // Use 8s per segment (total: 24s)
-    } else if (desiredDuration <= 32) {
+    } else if (adjustedDuration <= 32) {
       // Four segments for extended videos
       segmentCount = 4;
       segmentDuration = 8; // Use 8s per segment (total: 32s)
     } else {
       // Multiple segments for very long videos
-      segmentCount = Math.ceil(desiredDuration / 8);
+      segmentCount = Math.ceil(adjustedDuration / 8);
       segmentDuration = 8; // Always use 8s per segment
     }
     
-    console.log(`📊 Generating ${segmentCount} segments for ${desiredDuration}s video (${segmentDuration}s per segment)`);
-    console.log(`🔍 DEBUG: desiredDuration=${desiredDuration}, segmentCount=${segmentCount}, segmentDuration=${segmentDuration}`);
+    console.log(`📊 Generating ${segmentCount} segments for ${adjustedDuration}s video (${segmentDuration}s per segment)`);
+    console.log(`🔍 DEBUG: originalDuration=${desiredDuration}, adjustedDuration=${adjustedDuration}, segmentCount=${segmentCount}, segmentDuration=${segmentDuration}`);
     console.log(`⚠️  VEO 3.0 LIMITATION: Using 8s segments (Veo 3.0 only supports 4s, 6s, 8s durations)`);
     
     // Build comprehensive character and setting details
@@ -139,7 +142,7 @@ SCHEDULE TIME SLOT REQUIREMENTS:
 - Tone: ${timeSlotContext.tone || 'Professional and engaging'}
 - Voice Accent: ${timeSlotContext.preferredVoiceAccent || 'American'}
 - Dimensions: ${timeSlotContext.dimensions || '9:16 (vertical)'}
-- Duration: ${timeSlotContext.reelDuration || desiredDuration} seconds
+- Duration: ${timeSlotContext.reelDuration || adjustedDuration} seconds
 ` : '';
 
     // Build caption and hashtag context for alignment
@@ -160,7 +163,7 @@ REEL CONTENT REQUIREMENTS:
 - Clear call-to-action in final segment
 - High energy and engaging throughout
 - Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
-- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+- Duration: ${adjustedDuration} seconds total (${segmentCount} segments of 8s each)
 ` : contentType === 'story' ? `
 STORY CONTENT REQUIREMENTS:
 - More personal and intimate storytelling
@@ -168,13 +171,13 @@ STORY CONTENT REQUIREMENTS:
 - Natural pacing and transitions
 - Emotional connection with audience
 - Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
-- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+- Duration: ${adjustedDuration} seconds total (${segmentCount} segments of 8s each)
 ` : `
 GENERAL VIDEO REQUIREMENTS:
 - Professional, engaging content
 - Smooth flow and transitions
 - Optimized for ${timeSlotContext?.dimensions || '9:16'} vertical format
-- Duration: ${desiredDuration} seconds total (${segmentCount} segments of 8s each)
+- Duration: ${adjustedDuration} seconds total (${segmentCount} segments of 8s each)
 `;
 
     const scriptPrompt = `You are an expert video script writer for creating seamless 8-second video segments that flow together like a single continuous video.
@@ -185,7 +188,7 @@ CRITICAL REQUIREMENTS FOR SMOOTH FLOW:
 - Visual transitions must be smooth and natural
 - Story progression must feel organic and engaging
 
-TASK: Create a ${desiredDuration}-second ${contentType || 'video'} script divided into ${segmentCount} segments of 8 seconds each.
+TASK: Create a ${adjustedDuration}-second ${contentType || 'video'} script divided into ${segmentCount} segments of 8 seconds each.
 
 ${contentTypeInfo}
 
