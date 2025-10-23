@@ -116,7 +116,6 @@ typings/
 uploads/*
 !uploads/.gitkeep
 
-authentication.json
 *.md
 *.json
 
