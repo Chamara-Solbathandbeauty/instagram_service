@@ -146,15 +146,15 @@ export class ExtendedVideoGenerationService {
 
       const savedMedia = await this.mediaRepository.save(media);
 
-      // 11. Cleanup: Delete segment files from GCS (intermediate segments only)
-      console.log(`🗑️  Cleaning up ${segments.length} intermediate segment files from GCS`);
+      // 11. Cleanup: Delete all intermediate files from GCS (segments + reference frames)
+      console.log(`🗑️  Cleaning up all intermediate files from GCS for content ${contentId}`);
       try {
-        await this.gcsStorageService.deleteContentSegments(contentId);
-        console.log(`✅ Successfully cleaned up intermediate segment files`);
+        await this.gcsStorageService.deleteAllContentFiles(contentId);
+        console.log(`✅ Successfully cleaned up all intermediate files (segments + reference frames)`);
       } catch (cleanupError) {
-        console.warn(`⚠️  Failed to clean up intermediate segment files (non-critical):`, cleanupError.message);
+        console.warn(`⚠️  Failed to clean up intermediate files (non-critical):`, cleanupError.message);
         console.log(`ℹ️  Video generation completed successfully, but cleanup failed due to GCS permissions`);
-        console.log(`ℹ️  Intermediate segment files may remain in GCS bucket`);
+        console.log(`ℹ️  Intermediate files may remain in GCS bucket`);
       }
 
       console.log(`✅ Extended video generation completed for content ${contentId}`);

@@ -99,6 +99,51 @@ export class GcsStorageService {
   }
 
   /**
+   * Delete all reference frames for a given content
+   * @param contentId - Content ID
+   */
+  async deleteContentFrames(contentId: number): Promise<void> {
+    try {
+      const prefix = `${this.baseFolder}/frames/content_${contentId}/`;
+      const bucket = this.storage.bucket(this.bucketName);
+
+      const [files] = await bucket.getFiles({ prefix });
+
+      if (files.length === 0) {
+        console.log(`No reference frames found for content ${contentId}`);
+        return;
+      }
+
+      await Promise.all(files.map((file) => file.delete()));
+      console.log(`✅ Deleted ${files.length} reference frames for content ${contentId}`);
+    } catch (error) {
+      console.error(`❌ Failed to delete reference frames for content ${contentId}:`, error);
+      throw new Error(`Failed to delete reference frames from GCS: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete all content-related files (segments + frames) for a given content
+   * @param contentId - Content ID
+   */
+  async deleteAllContentFiles(contentId: number): Promise<void> {
+    try {
+      console.log(`🧹 Cleaning up all files for content ${contentId}`);
+      
+      // Delete segments
+      await this.deleteContentSegments(contentId);
+      
+      // Delete reference frames
+      await this.deleteContentFrames(contentId);
+      
+      console.log(`✅ Successfully cleaned up all files for content ${contentId}`);
+    } catch (error) {
+      console.error(`❌ Failed to clean up all files for content ${contentId}:`, error);
+      throw new Error(`Failed to clean up all content files from GCS: ${error.message}`);
+    }
+  }
+
+  /**
    * Check if a segment exists in GCS
    * @param gcsUri - GCS URI of the segment
    * @returns true if segment exists
