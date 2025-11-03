@@ -336,52 +336,93 @@ export class ContentService {
         newMediaData = imageResult.mediaData;
         newFileName = `regenerated_image_${Date.now()}.jpg`;
       } else {
-        // Generate new video
+        // Video: prefer extended generation flow for reels/stories with segmentation & concatenation
+        const content = existingMedia.content;
+
+        if (content.type === ContentType.REEL || content.type === ContentType.STORY) {
+          // Cleanup old segments for this content (DB). GCS cleanup happens inside extended flow after success.
+          await this.videoSegmentRepository.delete({ contentId: content.id });
+
+          // Build a minimal ContentIdea if not available
+          const contentIdea: ContentIdea = {
+            title: content.usedTopics || `Regenerated ${content.type.toLowerCase()}`,
+            description: prompt || content.caption || 'Regenerated video',
+            visualElements: ['high quality', 'vertical 9:16', 'social media optimized'],
+            style: 'professional',
+            mood: content.tone || 'engaging',
+            targetAudience: 'general',
+          } as any;
+
+          // Desired duration: use stored desiredDuration or sensible defaults
+          const desired = content.desiredDuration || (content.type === ContentType.REEL ? 16 : 15);
+
+          // Enforce vertical for reels/stories
+          const aspect: '9:16' = '9:16';
+
+          const newExtendedMedia = await this.extendedVideoService.generateExtendedVideo(
+            content.id,
+            contentIdea,
+            desired,
+            aspect,
+          );
+
+          // Delete old media file (best-effort) and record, since we created a new final media
+          const fs = await import('fs');
+          const path = await import('path');
+          const oldFilePath = path.join(process.cwd(), 'uploads', 'media', existingMedia.filePath);
+          try {
+            if (fs.existsSync(oldFilePath)) {
+              fs.unlinkSync(oldFilePath);
+            }
+          } catch (e) {
+            console.warn('Failed to delete old media file:', (e as Error).message);
+          }
+          await this.mediaRepository.remove(existingMedia);
+
+          return newExtendedMedia;
+        }
+
+        // Non-reel/story fallback: simple single-clip regeneration (8s, landscape or original)
         const videoRequest = {
           prompt: prompt,
           style: 'professional',
           mood: 'engaging',
           visualElements: ['high quality', 'social media optimized'],
           targetAudience: 'general',
-          duration: 15,
-          aspectRatio: '16:9' as const, // Veo 3 supported format
+          duration: 8,
+          aspectRatio: '16:9' as const,
         };
-        
+
         const videoResult = await this.vertexAiMediaService.generateVideo(videoRequest);
         if (!videoResult.success || !videoResult.mediaData) {
           throw new Error('Failed to generate new video');
         }
-        
+
         newMediaData = videoResult.mediaData;
         newFileName = `regenerated_video_${Date.now()}.mp4`;
-      }
 
-      // Save the new media file
-      const newMedia = await this.mediaStorageService.saveMediaFile(
-        existingMedia.contentId,
-        newMediaData,
-        newFileName,
-        existingMedia.mediaType,
-        prompt
-      );
+        // Save the regenerated single clip and replace the old one
+        const newMedia = await this.mediaStorageService.saveMediaFile(
+          existingMedia.contentId,
+          newMediaData,
+          newFileName,
+          existingMedia.mediaType,
+          prompt
+        );
 
-      // Delete the old media file from filesystem
-      const fs = await import('fs');
-      const path = await import('path');
-      const oldFilePath = path.join(process.cwd(), 'uploads', 'media', existingMedia.filePath);
-      
-      try {
-        if (fs.existsSync(oldFilePath)) {
-          fs.unlinkSync(oldFilePath);
+        const fs = await import('fs');
+        const path = await import('path');
+        const oldFilePath = path.join(process.cwd(), 'uploads', 'media', existingMedia.filePath);
+        try {
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+          }
+        } catch (e) {
+          console.warn('Failed to delete old media file:', (e as Error).message);
         }
-      } catch (error) {
-        console.warn('Failed to delete old media file:', error);
+        await this.mediaRepository.remove(existingMedia);
+        return newMedia;
       }
-
-      // Remove the old media record from database
-      await this.mediaRepository.remove(existingMedia);
-
-      return newMedia;
     } catch (error) {
       console.error('Error regenerating media:', error);
       throw new Error(`Failed to regenerate media: ${error.message}`);

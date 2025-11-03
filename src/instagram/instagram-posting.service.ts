@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
 import { InstagramGraphService } from './instagram-graph.service';
 import { Media } from '../content/media.entity';
+import { Content, ContentType } from '../content/entities/content.entity';
 import { PublishedMediaService } from '../content/published-media.service';
 
 export interface PostToInstagramRequest {
@@ -28,6 +29,8 @@ export class InstagramPostingService {
     private igAccountRepository: Repository<IgAccount>,
     @InjectRepository(Media)
     private mediaRepository: Repository<Media>,
+    @InjectRepository(Content)
+    private contentRepository: Repository<Content>,
     private instagramGraphService: InstagramGraphService,
     private publishedMediaService: PublishedMediaService,
   ) {}
@@ -62,13 +65,23 @@ export class InstagramPostingService {
         );
       }
 
-      // Get the media file
+      // Get the media file with its content relation
       const media = await this.mediaRepository.findOne({
         where: { id: request.mediaId },
+        relations: ['content'],
       });
 
       if (!media) {
         throw new HttpException('Media file not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get the content to check its type
+      const content = await this.contentRepository.findOne({
+        where: { id: media.contentId },
+      });
+
+      if (!content) {
+        throw new HttpException('Content not found for this media', HttpStatus.NOT_FOUND);
       }
 
       // Construct the full media URL
@@ -171,21 +184,47 @@ export class InstagramPostingService {
       
       
       if (media.mediaType === 'video') {
-        // Post as Reel for videos
-        result = await this.instagramGraphService.postReel(
-          postingEndpoint,
-          account.accessToken!,
-          mediaUrl,
-          caption,
-        );
+        // Check content type to determine if this is a story or reel
+        if (content.type === ContentType.STORY) {
+          // Post as Story for story content
+          console.log('📱 Posting video as Story to Instagram Stories...');
+          result = await this.instagramGraphService.postStory(
+            postingEndpoint,
+            account.accessToken!,
+            mediaUrl,
+            true // isVideo
+          );
+        } else {
+          // Post as Reel for reel content
+          console.log('🎬 Posting video as Reel to Instagram Feed...');
+          result = await this.instagramGraphService.postReel(
+            postingEndpoint,
+            account.accessToken!,
+            mediaUrl,
+            caption,
+          );
+        }
       } else if (media.mediaType === 'image') {
-        // Post as regular image
-        result = await this.instagramGraphService.postImage(
-          postingEndpoint,
-          account.accessToken!,
-          mediaUrl,
-          caption,
-        );
+        // Check if this is a story image or regular post image
+        if (content.type === ContentType.STORY) {
+          // Post as Story for story content
+          console.log('📱 Posting image as Story to Instagram Stories...');
+          result = await this.instagramGraphService.postStory(
+            postingEndpoint,
+            account.accessToken!,
+            mediaUrl,
+            false // isVideo
+          );
+        } else {
+          // Post as regular image
+          console.log('🖼️ Posting image to Instagram Feed...');
+          result = await this.instagramGraphService.postImage(
+            postingEndpoint,
+            account.accessToken!,
+            mediaUrl,
+            caption,
+          );
+        }
       } else {
         throw new HttpException(
           'Unsupported media type for Instagram posting',

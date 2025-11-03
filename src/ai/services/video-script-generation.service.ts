@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { z } from 'zod';
 import { LLMService } from './llm.service';
 
 export interface SegmentScript {
@@ -325,25 +326,73 @@ Respond with ONLY valid JSON (no markdown, no explanations):
       console.log(`🤖 Calling LLM for script generation with ${segmentCount} segments`);
       console.log(`📝 Prompt length: ${scriptPrompt.length} characters`);
       
-      const llm = this.llmService.getLLM();
-      const response = await llm.invoke(scriptPrompt);
-      
-      console.log(`📥 LLM Response received:`, typeof response.content);
-      
-      // Extract text content from response
-      const responseText = typeof response.content === 'string' 
-        ? response.content 
-        : JSON.stringify(response.content);
-      
-      console.log(`📄 Response text length: ${responseText.length}`);
-      console.log(`📄 Response preview: ${responseText.substring(0, 200)}...`);
-      
-      // Clean up markdown code blocks if present
-      const cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
-      console.log(`🧹 Cleaned text length: ${cleanedText.length}`);
-      
-      const parsed = JSON.parse(cleanedText);
+      // 1) Try Gemini structured output first (schema-enforced)
+      let parsed: any | null = null;
+      try {
+        const SegmentSchema = z.object({
+          segmentNumber: z.number().int().min(1),
+          duration: z.number().int().min(1),
+          // Keep fields simple strings/arrays to satisfy Gemini responseSchema constraints
+          prompt: z.string().optional(),
+          camera_style: z.string().optional(),
+          visuals: z.array(z.string()).optional(),
+          audio: z.string().optional(),
+          voiceover: z.string().optional(),
+        });
+        const SegmentsResponseSchema = z.object({
+          segments: z.array(SegmentSchema).min(1),
+        });
+
+        const structuredModel = this.llmService.getLLM().withStructuredOutput(SegmentsResponseSchema as any);
+        const structured = await structuredModel.invoke(scriptPrompt);
+        parsed = structured;
+        console.log(`✅ Received structured output, segments count: ${parsed.segments.length}`);
+      } catch (structuredErr) {
+        console.warn('⚠️ Structured output failed, falling back to JSON parsing:', (structuredErr as Error).message);
+
+        // 2) Fallback to tolerant JSON parsing
+        const llm = this.llmService.getLLM();
+        const response = await llm.invoke(scriptPrompt);
+        
+        console.log(`📥 LLM Response received:`, typeof response.content);
+        
+        // Extract text content from response
+        const responseText = typeof response.content === 'string' 
+          ? response.content 
+          : JSON.stringify(response.content);
+        
+        console.log(`📄 Response text length: ${responseText.length}`);
+        console.log(`📄 Response preview: ${responseText.substring(0, 200)}...`);
+        
+        // Clean up markdown code blocks if present
+        let cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        console.log(`🧹 Cleaned text length: ${cleanedText.length}`);
+
+        const repairJson = (text: string): string => {
+          return text
+            .replace(/[“”]/g, '"')
+            .replace(/[‘’]/g, "'")
+            .replace(/,\s*(\}|\])/g, '$1')
+            .replace(/\\(\s*\\)/g, '\\')
+            .replace(/^\ufeff/, '')
+            .replace(/\/(?:\*[^*]*\*+([^/*][^*]*\*+)*\/|\/.*)/g, '');
+        };
+
+        try {
+          parsed = JSON.parse(cleanedText);
+        } catch (e1) {
+          console.warn('⚠️ First JSON.parse failed. Attempting repair...');
+          const repaired = repairJson(cleanedText);
+          try {
+            parsed = JSON.parse(repaired);
+            console.log('✅ JSON repaired and parsed successfully');
+          } catch (e2) {
+            console.error('❌ JSON repair failed. Snippet:', repaired.substring(0, 400));
+            throw e1;
+          }
+        }
+      }
       
       console.log(`✅ Parsed JSON successfully, segments count: ${parsed.segments?.length || 0}`);
       

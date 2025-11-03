@@ -280,8 +280,9 @@ export class InstagramGraphService {
     accessToken: string,
     mediaUrl: string,
     caption: string,
-    mediaType: 'REELS' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM',
-    altText?: string
+    mediaType: 'REELS' | 'STORIES' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM',
+    altText?: string,
+    isVideoForStories?: boolean
   ): Promise<InstagramMediaUpload> {
     try {
       
@@ -300,6 +301,17 @@ export class InstagramGraphService {
         if (altText && altText.trim()) {
           requestData.alt_text = altText;
         }
+      } else if (mediaType === 'STORIES') {
+        // Stories can be either images or videos
+        // isVideoForStories is true for videos, false for images
+        if (isVideoForStories === true) {
+          // Video story
+          requestData.video_url = mediaUrl;
+        } else {
+          // Image story
+          requestData.image_url = mediaUrl;
+        }
+        requestData.media_type = 'STORIES';
       } else if (mediaType === 'VIDEO' || mediaType === 'REELS') {
         requestData.video_url = mediaUrl;
         requestData.media_type = mediaType;
@@ -553,18 +565,20 @@ export class InstagramGraphService {
     instagramAccountId: string,
     accessToken: string,
     mediaUrl: string,
-    mediaType: 'IMAGE' | 'VIDEO'
+    isVideo: boolean = true
   ): Promise<InstagramMediaPublish> {
     try {
       console.log('Starting story upload to Instagram...');
       
-      // Step 1: Upload the story media
+      // Step 1: Upload the story media with STORIES media type
       const uploadResult = await this.uploadMedia(
         instagramAccountId,
         accessToken,
         mediaUrl,
         '', // Stories don't have captions
-        mediaType
+        'STORIES', // Use STORIES media type for stories
+        undefined, // altText not needed for stories
+        isVideo // Pass isVideo to determine if we use video_url or image_url
       );
 
       console.log('Story upload successful, creation_id:', uploadResult.creation_id);
