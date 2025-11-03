@@ -282,7 +282,8 @@ export class InstagramGraphService {
     caption: string,
     mediaType: 'REELS' | 'STORIES' | 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM',
     altText?: string,
-    isVideoForStories?: boolean
+    isVideoForStories?: boolean,
+    isCarouselChild?: boolean
   ): Promise<InstagramMediaUpload> {
     try {
       
@@ -293,7 +294,11 @@ export class InstagramGraphService {
         access_token: accessToken,
       };
 
-      if (mediaType === 'IMAGE') {
+      if (isCarouselChild) {
+        // Carousel child: set is_carousel_item and image_url
+        requestData.image_url = mediaUrl;
+        requestData.is_carousel_item = true;
+      } else if (mediaType === 'IMAGE') {
         requestData.image_url = mediaUrl;
         requestData.media_type = 'IMAGE';
         
@@ -317,8 +322,8 @@ export class InstagramGraphService {
         requestData.media_type = mediaType;
       }
 
-      // Only add caption if it's not empty
-      if (caption && caption.trim()) {
+      // Only add caption if it's not empty and not a carousel child
+      if (!isCarouselChild && caption && caption.trim()) {
         requestData.caption = caption;
       }
       
@@ -647,7 +652,9 @@ export class InstagramGraphService {
           imageUrl,
           '', // No caption for children
           'IMAGE',
-          altText
+          altText,
+          undefined,
+          true // isCarouselChild
         );
 
         childIds.push(childUpload.creation_id);
@@ -659,7 +666,7 @@ export class InstagramGraphService {
       
       const carouselRequestData: any = {
         access_token: accessToken,
-        media_type: 'CAROUSEL_ALBUM',
+        media_type: 'CAROUSEL',
         children: childIds.join(','),
       };
 
