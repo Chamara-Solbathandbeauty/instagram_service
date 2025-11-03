@@ -10,6 +10,10 @@ import { Content } from '../content/entities/content.entity';
 import { Media } from '../content/media.entity';
 import { ScheduleTimeSlot } from '../schedules/schedule-time-slot.entity';
 import { VideoSegment } from './entities/video-segment.entity';
+import { ContentGenerationJob } from './entities/content-generation-job.entity';
+import { ContentGenerationJobService } from './services/content-generation-job.service';
+import { ContentGenerationWorkerService } from './services/content-generation-worker.service';
+import { User } from '../users/entities/user.entity';
 
 // Multi-Agent System
 import { ImageGenerationAgent } from './agents/image-generation-agent';
@@ -36,6 +40,8 @@ import { ExtendedVideoGenerationService } from './services/extended-video-genera
       Content,
       Media,
       VideoSegment,
+      ContentGenerationJob,
+      User,
     ])
   ],
   providers: [
@@ -44,6 +50,8 @@ import { ExtendedVideoGenerationService } from './services/extended-video-genera
     AILoggerService,
     ScheduleGeneratorService, 
     ContentGeneratorService,
+    ContentGenerationJobService,
+    ContentGenerationWorkerService,
     ImageGenerationAgent,
     ReelGenerationAgent,
     MediaStorageService,

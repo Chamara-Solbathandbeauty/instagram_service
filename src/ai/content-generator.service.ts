@@ -128,20 +128,45 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     generationWeek: string,
     userInstructions?: string
   ): Promise<{ message: string; generatedContent: any[] }> {
+    return this.generateContentForScheduleWithProgress(
+      scheduleId,
+      userId,
+      generationWeek,
+      userInstructions,
+    );
+  }
+
+  async generateContentForScheduleWithProgress(
+    scheduleId: number,
+    userId: string,
+    generationWeek: string,
+    userInstructions?: string,
+    progressCallback?: (progress: number, message?: string) => Promise<void>
+  ): Promise<{ message: string; generatedContent: any[] }> {
     try {
+      const updateProgress = async (progress: number, message?: string) => {
+        if (progressCallback) {
+          await progressCallback(progress, message);
+        }
+      };
+
+      await updateProgress(10, 'Fetching schedule and account details');
       // 1. Get schedule and account details
       const schedule = await this.getScheduleWithAccount(scheduleId, userId);
       if (!schedule) {
         throw new HttpException('Schedule not found', HttpStatus.NOT_FOUND);
       }
 
+      await updateProgress(20, 'Checking existing content');
       // 2. Get existing content for the generation week
       const existingContent = await this.getExistingContentForWeek(scheduleId, generationWeek);
 
+      await updateProgress(30, 'Calculating content requirements');
       // 3. Calculate how many content pieces to generate
       const contentCount = this.calculateContentCount(schedule, existingContent);
 
       if (contentCount === 0) {
+        await updateProgress(100, 'No content generation needed');
         return {
           message: 'No content generation needed for this week',
           generatedContent: []
@@ -151,6 +176,7 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       // 4. Use account topics for content generation
       const trendingTopics = schedule.account.topics ? schedule.account.topics.split(',').map(t => t.trim()) : ['lifestyle', 'wellness', 'motivation'];
 
+      await updateProgress(40, 'Generating content ideas with AI');
       // 5. Generate content using AI
       const generatedContent = await this.generateContentWithAI(
         schedule,
@@ -160,14 +186,21 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
         userInstructions
       );
 
-      // 6. Save generated content to database
-      const savedContent = await this.saveGeneratedContent(
+      await updateProgress(60, 'Saving content and generating media');
+      // 6. Save generated content to database with progress tracking
+      const savedContent = await this.saveGeneratedContentWithProgress(
         generatedContent,
         schedule,
         userId,
-        generationWeek
+        generationWeek,
+        async (progress, message) => {
+          // Map save progress (60-100%) to overall progress
+          const overallProgress = 60 + Math.floor(progress * 0.4);
+          await updateProgress(overallProgress, message);
+        }
       );
 
+      await updateProgress(100, 'Content generation completed');
       return {
         message: `Successfully generated ${savedContent.length} content pieces`,
         generatedContent: savedContent
@@ -182,13 +215,14 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     }
   }
 
-  private async getScheduleWithAccount(scheduleId: number, userId: string) {
+  private async getScheduleWithAccount(scheduleId: number, userId: string | number) {
+    const userIdStr = typeof userId === 'number' ? userId.toString() : userId;
     return await this.postingScheduleRepository
       .createQueryBuilder('schedule')
       .leftJoinAndSelect('schedule.account', 'account')
       .leftJoinAndSelect('schedule.timeSlots', 'timeSlots')
       .where('schedule.id = :scheduleId', { scheduleId })
-      .andWhere('account.userId = :userId', { userId })
+      .andWhere('account.userId = :userId', { userId: userIdStr })
       .getOne();
   }
 
@@ -256,6 +290,16 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     userId: string,
     generationWeek: string
   ): Promise<any[]> {
+    return this.saveGeneratedContentWithProgress(generatedContent, schedule, userId, generationWeek);
+  }
+
+  private async saveGeneratedContentWithProgress(
+    generatedContent: any[],
+    schedule: any,
+    userId: string,
+    generationWeek: string,
+    progressCallback?: (progress: number, message?: string) => Promise<void>
+  ): Promise<any[]> {
     const savedContent: any[] = [];
     const weekStart = moment(generationWeek).startOf('week');
     const weekEnd = weekStart.clone().endOf('week');
@@ -281,9 +325,17 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
       return true;
     });
 
+    const totalContent = Math.min(generatedContent.length, availableTimeSlots.length);
+    
     for (let i = 0; i < generatedContent.length && i < availableTimeSlots.length; i++) {
       const contentData = generatedContent[i];
       const timeSlot = availableTimeSlots[i];
+      
+      // Update progress for each content piece
+      if (progressCallback) {
+        const progress = Math.floor((i / totalContent) * 100);
+        await progressCallback(progress, `Generating content ${i + 1}/${totalContent}`);
+      }
       
       // Calculate the actual publish date based on generation week and time slot
       const postDate = weekStart.clone().add(timeSlot.dayOfWeek, 'days');
@@ -544,9 +596,9 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     return savedContent;
   }
 
-  async getNextGeneratableWeek(scheduleId: number, userId: string): Promise<string | null> {
+  async getNextGeneratableWeek(scheduleId: number, userId: string | number): Promise<string | null> {
     try {
-      const schedule = await this.getScheduleWithAccount(scheduleId, userId);
+      const schedule = await this.getScheduleWithAccount(scheduleId, userId.toString());
       if (!schedule) {
         throw new HttpException('Schedule not found', HttpStatus.NOT_FOUND);
       }
