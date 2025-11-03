@@ -605,6 +605,105 @@ export class InstagramGraphService {
   }
 
   /**
+   * Post a Carousel (multiple images) to Instagram
+   */
+  async postCarousel(
+    instagramAccountId: string,
+    accessToken: string,
+    imageUrls: string[],
+    caption: string,
+    altTexts?: string[]
+  ): Promise<InstagramMediaPublish> {
+    try {
+      if (!imageUrls || imageUrls.length < 2) {
+        throw new HttpException(
+          'Carousel requires at least 2 images',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (imageUrls.length > 10) {
+        throw new HttpException(
+          'Carousel can have maximum 10 images',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      console.log(`🎠 Creating carousel with ${imageUrls.length} images...`);
+
+      // Step 1: Upload each image as a child container
+      const childIds: string[] = [];
+      const endpoint = instagramAccountId === 'me' ? 'me' : instagramAccountId;
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
+        const altText = altTexts && altTexts[i] ? altTexts[i] : undefined;
+
+        console.log(`📸 Uploading carousel child ${i + 1}/${imageUrls.length}...`);
+
+        const childUpload = await this.uploadMedia(
+          instagramAccountId,
+          accessToken,
+          imageUrl,
+          '', // No caption for children
+          'IMAGE',
+          altText
+        );
+
+        childIds.push(childUpload.creation_id);
+        console.log(`✅ Child ${i + 1} uploaded, creation_id: ${childUpload.creation_id}`);
+      }
+
+      // Step 2: Create carousel container with all children
+      console.log(`🎠 Creating carousel container with ${childIds.length} children...`);
+      
+      const carouselRequestData: any = {
+        access_token: accessToken,
+        media_type: 'CAROUSEL_ALBUM',
+        children: childIds.join(','),
+      };
+
+      // Add caption to the carousel container
+      if (caption && caption.trim()) {
+        carouselRequestData.caption = caption;
+      }
+
+      const carouselResponse = await axios.post(
+        `https://graph.instagram.com/${endpoint}/media`,
+        carouselRequestData
+      );
+
+      if (!carouselResponse.data.id) {
+        console.error('No id in carousel response:', carouselResponse.data);
+        throw new HttpException(
+          'Instagram API did not return id for carousel',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const carouselCreationId = carouselResponse.data.id;
+      console.log(`✅ Carousel container created, creation_id: ${carouselCreationId}`);
+
+      // Step 3: Publish the carousel
+      console.log('📤 Publishing carousel...');
+      const publishResult = await this.publishMedia(
+        instagramAccountId,
+        accessToken,
+        carouselCreationId
+      );
+
+      console.log(`✅ Carousel published successfully: ${publishResult.id}`);
+      return publishResult;
+    } catch (error) {
+      console.error('Error posting carousel:', error.response?.data || error.message);
+      throw new HttpException(
+        error.response?.data?.error?.message || error.message || 'Failed to post carousel to Instagram',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
    * Check if access token is valid
    */
   async validateAccessToken(accessToken: string): Promise<boolean> {

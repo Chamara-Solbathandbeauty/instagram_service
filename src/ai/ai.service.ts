@@ -30,7 +30,9 @@ const TimeSlotSchema = z.object({
   tone: z.string().optional().describe('Content tone: free text describing the desired tone (e.g., "professional", "casual and friendly", "authoritative and confident")'),
   dimensions: z.string().optional().describe('Content dimensions: 1:1, 9:16, 4:5, 16:9'),
   preferredVoiceAccent: z.string().optional().describe('Preferred voice accent: american, british, australian, neutral, canadian'),
-  reelDuration: z.number().optional().describe('Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)'),
+  reelDuration: z.number().optional().describe('Duration in seconds: 8, 16, 24, 32. REQUIRED for REEL postType. REQUIRED for STORY postType when storyType is "video". Omit for POST_WITH_IMAGE and image stories.'),
+  storyType: z.string().optional().default('image').describe("Story type: 'image' or 'video'. ONLY for STORY postType. DEFAULT is 'image'. If STORY postType is 'video', MUST also include reelDuration."),
+  imageCount: z.number().int().min(1).max(5).optional().describe('Number of images to generate (1-5). ONLY for POST_WITH_IMAGE postType. Randomly assign a value between 1-5 for variety. Omit for reel and story types.'),
 });
 
 const ScheduleSchema = z.object({
@@ -239,7 +241,9 @@ export class AiService {
         * tone: free text describing the desired tone (e.g., "professional", "casual and friendly", "authoritative and confident")
         * dimensions: 1:1 for posts, 9:16 for reels/stories, 4:5 for Instagram posts
         * preferredVoiceAccent: american, british, australian, neutral, or canadian
-        * reelDuration: 8, 16, 24, or 32 seconds (ONLY for REEL postType, omit for others)
+        * storyType: 'image' or 'video' (REQUIRED for STORY postType. DEFAULT is 'image'. If STORY postType is 'video', MUST also include reelDuration)
+        * reelDuration: 8, 16, 24, or 32 seconds (REQUIRED for REEL postType. REQUIRED for STORY postType when storyType is 'video'. Omit for POST_WITH_IMAGE and image stories)
+        * imageCount: number between 1-5 (ONLY for POST_WITH_IMAGE postType, randomly assign a value between 1-5 for variety, omit for reel and story types)
 
       RESPOND WITH ONLY VALID JSON (no markdown, no explanations, no additional text):
       {{
@@ -262,7 +266,9 @@ export class AiService {
             "tone": "professional",
             "dimensions": "9:16",
             "preferredVoiceAccent": "american",
-            "reelDuration": 16
+            "reelDuration": 16,
+            "storyType": "video",
+            "imageCount": 3
           }}
         ]
       }}
@@ -320,6 +326,12 @@ export class AiService {
         postType: this.mapStringToPostType(slot.postType),
         label: slot.label,
         isEnabled: slot.isEnabled,
+        tone: slot.tone,
+        dimensions: slot.dimensions,
+        preferredVoiceAccent: slot.preferredVoiceAccent,
+        reelDuration: slot.reelDuration,
+        storyType: slot.storyType,
+        imageCount: slot.imageCount,
       })),
     };
   }

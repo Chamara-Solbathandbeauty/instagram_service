@@ -10,7 +10,8 @@ import {
   ValidateNested,
   IsInt,
   Min,
-  Max
+  Max,
+  ValidateIf
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ScheduleFrequency, ScheduleStatus } from '../posting-schedule.entity';
@@ -54,8 +55,20 @@ export class CreateTimeSlotDto {
   preferredVoiceAccent?: string;
 
   @IsOptional()
+  @IsString()
+  storyType?: string;
+
+  @ValidateIf((o) => o.postType === PostType.REEL || (o.postType === PostType.STORY && o.storyType === 'video'))
+  @IsNotEmpty({ message: 'Duration is required for reels and video stories' })
   @IsNumber()
+  @IsInt()
   reelDuration?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  imageCount?: number; // Number of images to generate (1-5), only for post_with_image type
 }
 
 export class CreateScheduleDto {

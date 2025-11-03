@@ -23,6 +23,7 @@ export interface ImageContentResult {
     targetAudience: string;
   };
   mediaPath: string;
+  mediaId: number;
   mediaMetadata: {
     fileName: string;
     fileSize: number;
@@ -56,7 +57,8 @@ export class ImageGenerationAgent {
       targetAudience: string;
     },
     caption: string,
-    hashtags: string[]
+    hashtags: string[],
+    contentId?: number | null
   ): Promise<ImageContentResult> {
     try {
       // 1. Generate image using Vertex AI
@@ -75,9 +77,10 @@ export class ImageGenerationAgent {
         account
       );
 
-      // 3. Save media file and create media record (content will be created by ContentAgentService)
+      // 3. Save media file and create media record
+      // If contentId is provided, link immediately; otherwise it will be set later
       const media = await this.mediaStorageService.saveMediaFile(
-        null, // contentId will be set later by ContentAgentService
+        contentId || null,
         imageGenerationResult.mediaData!,
         `generated_image_${Date.now()}.jpg`,
         'image',
@@ -89,6 +92,7 @@ export class ImageGenerationAgent {
         hashtags: hashtags,
         contentIdea: contentIdea,
         mediaPath: media.filePath,
+        mediaId: media.id,
         mediaMetadata: {
           fileName: media.fileName,
           fileSize: media.fileSize,

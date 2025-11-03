@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNotEmpty, IsEnum, IsBoolean, IsDateString, IsArray, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNotEmpty, IsEnum, IsBoolean, IsDateString, IsArray, IsInt, Min, Max, ValidateIf, IsNumber } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ScheduleFrequency, ScheduleStatus } from '../posting-schedule.entity';
 import { PostType } from '../schedule-time-slot.entity';
@@ -26,6 +26,22 @@ export class CreateTimeSlotDto {
   @IsString()
   @IsOptional()
   label?: string;
+
+  @IsOptional()
+  @IsString()
+  storyType?: string;
+
+  @ValidateIf((o) => o.postType === PostType.REEL || (o.postType === PostType.STORY && o.storyType === 'video'))
+  @IsNotEmpty({ message: 'Duration is required for reels and video stories' })
+  @IsNumber()
+  @IsInt()
+  reelDuration?: number;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @IsOptional()
+  imageCount?: number; // Number of images to generate (1-5), only for post_with_image type
 }
 
 export class CreatePostingScheduleDto {

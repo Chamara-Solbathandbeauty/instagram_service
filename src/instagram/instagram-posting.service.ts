@@ -75,17 +75,28 @@ export class InstagramPostingService {
         throw new HttpException('Media file not found', HttpStatus.NOT_FOUND);
       }
 
-      // Get the content to check its type
+      // Get the content to check its type and fetch all media files
       const content = await this.contentRepository.findOne({
         where: { id: media.contentId },
+        relations: ['media'],
       });
 
       if (!content) {
         throw new HttpException('Content not found for this media', HttpStatus.NOT_FOUND);
       }
 
-      // Construct the full media URL
+      // Get all image media files for this content (only images, ordered by creation)
+      const allImageMedia = content.media
+        .filter(m => m.mediaType === 'image')
+        .sort((a, b) => a.id - b.id); // Sort by ID to maintain order
+
+      // Construct the base URL
       const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+      
+      // If there are multiple images and content type is POST_WITH_IMAGE, use carousel
+      const shouldUseCarousel = allImageMedia.length >= 2 && content.type === ContentType.POST_WITH_IMAGE;
+
+      // For single image or stories, use the specific media URL
       const mediaUrl = `${baseUrl}/uploads/media/${media.filePath}`;
       // public accessable media url for testing
       // const mediaUrl = 'https://photographylife.com/wp-content/uploads/2014/10/Nikon-D750-Sample-Image-36.jpg';  
@@ -115,21 +126,27 @@ export class InstagramPostingService {
         }
       }
 
-      // Check if media URL is accessible
-      try {
-        const response = await fetch(mediaUrl, { method: 'HEAD' });
-        if (!response.ok) {
+      // Check if media URLs are accessible
+      const mediaUrlsToCheck = shouldUseCarousel 
+        ? allImageMedia.map(m => `${baseUrl}/uploads/media/${m.filePath}`)
+        : [mediaUrl];
+
+      for (const urlToCheck of mediaUrlsToCheck) {
+        try {
+          const response = await fetch(urlToCheck, { method: 'HEAD' });
+          if (!response.ok) {
+            throw new HttpException(
+              `Media file is not accessible at ${urlToCheck}. Status: ${response.status}`,
+              HttpStatus.BAD_REQUEST,
+            );
+          }
+        } catch (error) {
+          console.error('- Media URL check failed:', error.message);
           throw new HttpException(
-            `Media file is not accessible at ${mediaUrl}. Status: ${response.status}`,
+            `Media file is not accessible: ${error.message}`,
             HttpStatus.BAD_REQUEST,
           );
         }
-      } catch (error) {
-        console.error('- Media URL check failed:', error.message);
-        throw new HttpException(
-          `Media file is not accessible: ${error.message}`,
-          HttpStatus.BAD_REQUEST,
-        );
       }
 
       // Prepare caption with hashtags
@@ -215,9 +232,19 @@ export class InstagramPostingService {
             mediaUrl,
             false // isVideo
           );
+        } else if (shouldUseCarousel) {
+          // Post as carousel if multiple images
+          console.log(`🎠 Posting ${allImageMedia.length} images as carousel to Instagram Feed...`);
+          const imageUrls = allImageMedia.map(m => `${baseUrl}/uploads/media/${m.filePath}`);
+          result = await this.instagramGraphService.postCarousel(
+            postingEndpoint,
+            account.accessToken!,
+            imageUrls,
+            caption
+          );
         } else {
-          // Post as regular image
-          console.log('🖼️ Posting image to Instagram Feed...');
+          // Post as regular single image
+          console.log('🖼️ Posting single image to Instagram Feed...');
           result = await this.instagramGraphService.postImage(
             postingEndpoint,
             account.accessToken!,

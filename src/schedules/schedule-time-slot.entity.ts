@@ -58,6 +58,9 @@ export class ScheduleTimeSlot {
   @Column({ type: 'varchar', length: 20, nullable: true, default: 'video' })
   storyType: string; // 'image' or 'video' - only for story post types
 
+  @Column({ type: 'int', default: 1 })
+  imageCount: number; // Number of images to generate (1-5), only for post_with_image type
+
   @OneToMany(() => ScheduleContent, scheduleContent => scheduleContent.timeSlot, { cascade: true })
   scheduleContent: ScheduleContent[];
 

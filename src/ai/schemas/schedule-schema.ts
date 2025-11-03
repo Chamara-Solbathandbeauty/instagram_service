@@ -13,7 +13,9 @@ export const TimeSlotSchema = z.object({
   tone: z.string().optional().describe("Content tone: free text describing the desired tone (e.g., 'professional', 'casual and friendly', 'authoritative and confident')"),
   dimensions: z.string().optional().describe("Content dimensions: 1:1, 9:16, 4:5, 16:9"),
   preferredVoiceAccent: z.string().optional().describe("Preferred voice accent: american, british, australian, neutral, canadian"),
-  reelDuration: z.number().optional().describe("Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"),
+  reelDuration: z.number().optional().describe("CRITICAL - Duration in seconds: 8, 16, 24, or 32. MUST be included for EVERY reel postType. MUST also be included for story postType when storyType is 'video'. MUST NOT be included for post_with_image or image stories."),
+  storyType: z.string().optional().default('image').describe("Story type: 'image' or 'video'. ONLY for story postType. DEFAULT is 'image'. If story postType is 'video', MUST include reelDuration. For image stories, omit reelDuration."),
+  imageCount: z.number().int().min(1).max(5).optional().describe("Number of images to generate (1-5). ONLY for post_with_image postType. Randomly assign a value between 1-5 for variety. Omit for reel and story types."),
 });
 
 // Main Schedule Schema
@@ -34,60 +36,52 @@ export const AIGeneratedScheduleSchema = z.object({
 export type AIGeneratedSchedule = z.infer<typeof AIGeneratedScheduleSchema>;
 export type TimeSlot = z.infer<typeof TimeSlotSchema>;
 
-// JSON Schema for LangChain structured output
+// JSON Schema for LangChain structured output (simplified to avoid Gemini constraint errors)
 export const scheduleJsonSchema = {
   type: "object",
   properties: {
     name: {
       type: "string",
-      description: "Descriptive name for the posting schedule",
-      minLength: 1,
-      maxLength: 100
+      description: "Schedule name"
     },
     description: {
       type: "string",
-      description: "Detailed description of the schedule strategy and goals",
-      minLength: 10,
-      maxLength: 3000
+      description: "Schedule description"
     },
     frequency: {
       type: "string",
       enum: ["daily", "weekly", "custom"],
-      description: "Posting frequency: daily, weekly, or custom"
+      description: "Posting frequency"
     },
     status: {
       type: "string",
       enum: ["active", "paused", "inactive"],
-      description: "Schedule status: active, paused, or inactive",
+      description: "Schedule status",
       default: "active"
     },
     isEnabled: {
       type: "boolean",
-      description: "Whether the schedule is enabled",
+      description: "Schedule enabled",
       default: true
     },
     startDate: {
       type: "string",
-      description: "Start date in YYYY-MM-DD format (should be tomorrow's date)",
-      pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      description: "Start date YYYY-MM-DD"
     },
     endDate: {
       type: "string",
-      description: "End date in YYYY-MM-DD format (should be 3 months from today)",
-      pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      description: "End date YYYY-MM-DD"
     },
     customDays: {
       type: "array",
       items: {
-        type: "integer",
-        minimum: 0,
-        maximum: 6
+        type: "integer"
       },
-      description: "Custom days array (only if frequency is 'custom')"
+      description: "Custom days (0-6)"
     },
     timezone: {
       type: "string",
-      description: "Timezone for the schedule",
+      description: "Timezone",
       default: "UTC"
     },
     timeSlots: {
@@ -97,56 +91,60 @@ export const scheduleJsonSchema = {
         properties: {
           startTime: {
             type: "string",
-            pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$",
-            description: "Start time in HH:MM:SS format"
+            description: "Start time HH:MM:SS"
           },
           endTime: {
             type: "string",
-            pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$",
-            description: "End time in HH:MM:SS format"
+            description: "End time HH:MM:SS"
           },
           dayOfWeek: {
             type: "integer",
-            minimum: 0,
-            maximum: 6,
-            description: "Day of week (0=Sunday, 1=Monday, ..., 6=Saturday)"
+            description: "Day 0-6 (0=Sun)"
           },
           postType: {
             type: "string",
             enum: ["post_with_image", "reel", "story"],
-            description: "Type of content to post: post_with_image, reel, or story"
+            description: "Content type"
           },
           isEnabled: {
             type: "boolean",
-            description: "Whether this time slot is enabled",
+            description: "Enabled",
             default: true
           },
           label: {
             type: "string",
-            description: "Optional label for this time slot (e.g., 'Morning Posts', 'Evening Stories')"
+            description: "Slot label"
           },
           tone: {
             type: "string",
-            description: "Content tone: free text describing the desired tone (e.g., 'professional', 'casual and friendly', 'authoritative and confident')"
+            description: "Content tone"
           },
           dimensions: {
             type: "string",
-            description: "Content dimensions: 1:1, 9:16, 4:5, 16:9"
+            description: "Dimensions"
           },
           preferredVoiceAccent: {
             type: "string",
-            description: "Preferred voice accent: american, british, australian, neutral, canadian"
+            description: "Voice accent"
           },
           reelDuration: {
             type: "number",
-            description: "Reel duration in seconds: 8, 16, 24, 32 (only for reel post type)"
+            description: "Duration in seconds (8, 16, 24, or 32). REQUIRED for reel postType. REQUIRED for story postType when storyType is video. Omit for others."
+          },
+          storyType: {
+            type: "string",
+            enum: ["image", "video"],
+            description: "Story type. Default 'image'. If 'video', reelDuration is required.",
+            default: "image"
+          },
+          imageCount: {
+            type: "integer",
+            description: "Image count 1-5"
           }
         },
         required: ["startTime", "endTime", "dayOfWeek", "postType", "isEnabled"]
       },
-      minItems: 1,
-      maxItems: 14,
-      description: "Time slots for posting (max 2 per day)"
+      description: "Time slots"
     }
   },
   required: ["name", "description", "frequency", "status", "isEnabled", "timezone", "startDate", "endDate", "timeSlots"]

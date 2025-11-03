@@ -351,20 +351,20 @@ Respond with ONLY valid JSON (no markdown, no explanations):
         console.warn('⚠️ Structured output failed, falling back to JSON parsing:', (structuredErr as Error).message);
 
         // 2) Fallback to tolerant JSON parsing
-        const llm = this.llmService.getLLM();
-        const response = await llm.invoke(scriptPrompt);
+      const llm = this.llmService.getLLM();
+      const response = await llm.invoke(scriptPrompt);
         
         console.log(`📥 LLM Response received:`, typeof response.content);
-        
-        // Extract text content from response
-        const responseText = typeof response.content === 'string' 
-          ? response.content 
-          : JSON.stringify(response.content);
-        
+      
+      // Extract text content from response
+      const responseText = typeof response.content === 'string' 
+        ? response.content 
+        : JSON.stringify(response.content);
+      
         console.log(`📄 Response text length: ${responseText.length}`);
         console.log(`📄 Response preview: ${responseText.substring(0, 200)}...`);
         
-        // Clean up markdown code blocks if present
+      // Clean up markdown code blocks if present
         let cleanedText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         
         console.log(`🧹 Cleaned text length: ${cleanedText.length}`);

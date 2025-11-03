@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { PromptTemplate } from '@langchain/core/prompts';
 import { z } from 'zod';
 import { IgAccount } from '../ig-accounts/entities/ig-account.entity';
@@ -348,19 +348,85 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
           dimensions: timeSlot.dimensions,
           preferredVoiceAccent: timeSlot.preferredVoiceAccent,
           storyType: timeSlot.storyType,
+          imageCount: timeSlot.imageCount || 1, // Default to 1 if not set
         } as any;
 
         switch (contentData.type) {
           case 'post_with_image':
-            mediaResult = await this.imageGenerationAgent.generateContent(
-              schedule.account,
-              schedule,
-              timeSlotForMedia,
-              publishDate,
-              contentData.contentIdea,
-              contentData.caption,
-              contentData.hashtags
-            );
+            // Generate multiple images if imageCount > 1
+            const imageCount = timeSlot.imageCount || 1;
+            console.log(`📸 Generating ${imageCount} image(s) for post_with_image content`);
+            
+            if (imageCount === 1) {
+              // Single image (existing behavior) - link contentId immediately
+              mediaResult = await this.imageGenerationAgent.generateContent(
+                schedule.account,
+                schedule,
+                timeSlotForMedia,
+                publishDate,
+                contentData.contentIdea,
+                contentData.caption,
+                contentData.hashtags,
+                savedContentRecord.id // Pass contentId to link immediately
+              );
+            } else {
+              // Multiple images - generate each one with proper linking
+              const imageResults: any[] = [];
+              const generatedMediaIds: number[] = [];
+              
+              for (let i = 0; i < imageCount; i++) {
+                try {
+                  console.log(`📸 Generating image ${i + 1} of ${imageCount}`);
+                  const singleImageResult = await this.imageGenerationAgent.generateContent(
+                    schedule.account,
+                    schedule,
+                    timeSlotForMedia,
+                    publishDate,
+                    contentData.contentIdea,
+                    contentData.caption,
+                    contentData.hashtags,
+                    savedContentRecord.id // Pass contentId to link immediately
+                  );
+                  
+                  imageResults.push(singleImageResult);
+                  generatedMediaIds.push(singleImageResult.mediaId);
+                  console.log(`✅ Generated and linked image ${i + 1}/${imageCount} (mediaId: ${singleImageResult.mediaId})`);
+                } catch (error) {
+                  console.error(`❌ Failed to generate image ${i + 1} of ${imageCount}:`, error);
+                  // Continue with other images even if one fails
+                  // Log error but don't throw to allow other images to generate
+                }
+              }
+              
+              // Verify all media records are properly linked
+              if (generatedMediaIds.length > 0) {
+                const linkedMedia = await this.mediaRepository.find({
+                  where: { 
+                    id: generatedMediaIds.length === 1 
+                      ? generatedMediaIds[0] 
+                      : In(generatedMediaIds) 
+                  }
+                });
+                
+                const properlyLinked = linkedMedia.filter(m => m.contentId === savedContentRecord.id);
+                console.log(`✅ Successfully linked ${properlyLinked.length}/${generatedMediaIds.length} images to content ${savedContentRecord.id}`);
+                
+                if (properlyLinked.length === 0) {
+                  console.warn(`⚠️ Warning: No images were successfully linked to content ${savedContentRecord.id}`);
+                } else if (properlyLinked.length < generatedMediaIds.length) {
+                  console.warn(`⚠️ Warning: Only ${properlyLinked.length}/${generatedMediaIds.length} images were properly linked to content ${savedContentRecord.id}`);
+                }
+              }
+              
+              // Use the first successful image result as the main mediaResult for compatibility
+              mediaResult = imageResults.length > 0 ? imageResults[0] : null;
+              
+              if (imageResults.length > 0) {
+                console.log(`✅ Generated ${imageResults.length}/${imageCount} images for content ${savedContentRecord.id}`);
+              } else {
+                throw new Error(`Failed to generate any images for content ${savedContentRecord.id}`);
+              }
+            }
             break;
           case 'reel':
             // Pass contentId to enable extended video generation
@@ -388,7 +454,8 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
                 publishDate,
                 contentData.contentIdea,
                 contentData.caption,
-                contentData.hashtags
+                contentData.hashtags,
+                savedContentRecord.id // Pass contentId to link immediately
               );
             } else {
               // Generate video story (existing behavior)
@@ -530,3 +597,4 @@ Generate content that feels authentic, engaging, and perfectly aligned with the 
     return null; // No week found that needs content
   }
 }
+
