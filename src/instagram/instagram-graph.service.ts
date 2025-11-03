@@ -584,13 +584,13 @@ export class InstagramGraphService {
       console.log('Story upload successful, creation_id:', uploadResult.creation_id);
       console.log('Starting story publishing...');
 
-      // Step 2: Publish the story
+      // Step 2: Publish the story with increased retries for video processing
       const publishResult = await this.publishMedia(
         instagramAccountId,
         accessToken,
         uploadResult.creation_id,
-        3, // Max 3 retries for stories
-        10000 // Wait 10 seconds between retries
+        8, // Max 8 retries for stories (videos need more time to process)
+        15000 // Wait 15 seconds between retries (same as reels)
       );
 
       console.log('Story published successfully:', publishResult.id);
