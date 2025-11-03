@@ -667,13 +667,15 @@ export class InstagramGraphService {
       const carouselRequestData: any = {
         access_token: accessToken,
         media_type: 'CAROUSEL',
-        children: childIds.join(','),
+        children: childIds, // send as array
       };
 
       // Add caption to the carousel container
       if (caption && caption.trim()) {
         carouselRequestData.caption = caption;
       }
+
+      console.log('📦 Carousel parent request payload:', JSON.stringify(carouselRequestData));
 
       const carouselResponse = await axios.post(
         `https://graph.instagram.com/${endpoint}/media`,
